@@ -1,0 +1,267 @@
+.categories-page {
+    position: relative;
+    min-height: 100svh;
+    overflow: hidden;
+    color: var(--color-text);
+    background: var(--color-bg-deep);
+    isolation: isolate;
+}
+
+.categories-page::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -3;
+
+    background-image: url("/images/categories/categories-bg.png");
+    background-size: cover;
+    background-position: center;
+}
+
+.categories-page__overlay {
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+
+    background:
+        radial-gradient(circle at 50% 28%, rgba(214, 167, 95, 0.12), transparent 32%),
+        linear-gradient(to bottom, rgba(5, 8, 14, 0.08), rgba(5, 8, 14, 0.32) 62%, rgba(5, 8, 14, 0.52)),
+        linear-gradient(to right, rgba(5, 8, 14, 0.18), transparent 45%, rgba(5, 8, 14, 0.22));
+}
+
+.categories-header {
+    position: relative;
+    z-index: 5;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 28px clamp(20px, 4vw, 64px);
+}
+
+.categories-header__back,
+.categories-header__map {
+    display: inline-flex;
+    align-items: center;
+    min-height: 46px;
+    padding: 0 20px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 248, 232, 0.28);
+    background: rgba(8, 12, 20, 0.34);
+    color: rgba(255, 248, 232, 0.9);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+}
+
+.categories-hero {
+    position: relative;
+    z-index: 3;
+    max-width: 760px;
+    margin: 2vh auto 0;
+    padding: 0 20px;
+    text-align: center;
+}
+
+.categories-hero__eyebrow {
+    display: none;
+}
+
+.categories-hero h1 {
+    margin: 0;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(32px, 4vw, 68px);
+    font-weight: 500;
+    line-height: 0.95;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: rgba(255, 248, 232, 0.95);
+    text-shadow: 0 18px 60px rgba(0, 0, 0, 0.65);
+}
+
+.categories-hero p {
+    max-width: 620px;
+    margin: 18px auto 0;
+    color: rgba(255, 229, 177, 0.86);
+    font-size: clamp(16px, 1.3vw, 20px);
+    line-height: 1.45;
+    text-shadow: 0 10px 34px rgba(0, 0, 0, 0.65);
+}
+
+.category-board {
+    position: relative;
+    z-index: 4;
+
+    display: grid;
+    grid-template-columns: repeat(3, minmax(260px, 360px));
+    justify-content: center;
+    gap: 28px 34px;
+
+    max-width: 1240px;
+    margin: 44px auto 0;
+    padding: 0 28px 58px;
+}
+
+.category-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+
+    min-height: 280px;
+    padding: 28px;
+    overflow: hidden;
+
+    border-radius: 22px;
+    border: 1px solid rgba(255, 248, 232, 0.22);
+
+    background:
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.04), rgba(5, 8, 14, 0.82)),
+        rgba(10, 15, 24, 0.72);
+
+    color: rgba(255, 248, 232, 0.92);
+
+    box-shadow:
+        0 26px 70px rgba(0, 0, 0, 0.48),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+
+    transform: rotate(var(--card-rotate, 0deg));
+    transition:
+        transform 0.28s ease,
+        border-color 0.28s ease,
+        box-shadow 0.28s ease;
+}
+
+.category-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+
+    background-image: var(--card-image);
+    background-size: cover;
+    background-position: center;
+
+    opacity: 0.72;
+    transform: scale(1.03);
+}
+
+.category-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+
+    background:
+        linear-gradient(to bottom, rgba(5, 8, 14, 0.14), rgba(5, 8, 14, 0.88)),
+        radial-gradient(circle at 50% 25%, transparent, rgba(5, 8, 14, 0.38));
+}
+
+.category-card:hover {
+    transform: translateY(-10px) rotate(0deg) scale(1.025);
+    border-color: rgba(214, 167, 95, 0.5);
+    box-shadow:
+        0 36px 100px rgba(0, 0, 0, 0.58),
+        0 0 52px rgba(214, 167, 95, 0.14);
+}
+
+.category-card__number {
+    display: none;
+}
+
+.category-card h2 {
+    margin: 0;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 26px;
+    font-weight: 600;
+    line-height: 1;
+    color: rgba(255, 248, 232, 0.96);
+    text-shadow: 0 12px 34px rgba(0, 0, 0, 0.72);
+}
+
+.category-card p {
+    max-width: 280px;
+    margin: auto 0 0;
+    color: rgba(255, 248, 232, 0.78);
+    line-height: 1.45;
+    text-shadow: 0 10px 26px rgba(0, 0, 0, 0.75);
+}
+
+/* Потом заменим картинки на реальные */
+.category-card--real-estate {
+    --card-rotate: -3deg;
+    --card-image: linear-gradient(135deg, rgba(214, 167, 95, 0.35), rgba(10, 15, 24, 0.4));
+}
+
+.category-card--rent {
+    --card-rotate: 1deg;
+    --card-image: linear-gradient(135deg, rgba(125, 211, 252, 0.26), rgba(10, 15, 24, 0.4));
+}
+
+.category-card--recreation {
+    --card-rotate: 3deg;
+    --card-image: linear-gradient(135deg, rgba(192, 132, 252, 0.24), rgba(10, 15, 24, 0.4));
+}
+
+.category-card--fishing {
+    --card-rotate: 2deg;
+    --card-image: linear-gradient(135deg, rgba(20, 184, 166, 0.3), rgba(10, 15, 24, 0.4));
+}
+
+.category-card--hunting {
+    --card-rotate: -2deg;
+    --card-image: linear-gradient(135deg, rgba(139, 94, 60, 0.36), rgba(10, 15, 24, 0.4));
+}
+
+.category-card--nature {
+    --card-rotate: 2deg;
+    --card-image: linear-gradient(135deg, rgba(124, 143, 91, 0.34), rgba(10, 15, 24, 0.4));
+}
+
+@media (max-width: 1100px) {
+    .category-board {
+        grid-template-columns: repeat(2, minmax(260px, 360px));
+    }
+}
+
+@media (max-width: 720px) {
+    .categories-page {
+        overflow: auto;
+    }
+
+    .categories-header {
+        padding: 18px;
+    }
+
+    .categories-header__back,
+    .categories-header__map {
+        min-height: 42px;
+        padding: 0 14px;
+        font-size: 13px;
+    }
+
+    .categories-hero {
+        margin-top: 4vh;
+    }
+
+    .categories-hero h1 {
+        font-size: 42px;
+    }
+
+    .category-board {
+        grid-template-columns: 1fr;
+        gap: 16px;
+        margin-top: 30px;
+        padding: 0 18px 42px;
+    }
+
+    .category-card {
+        min-height: 230px;
+        transform: none;
+    }
+
+    .category-card:hover {
+        transform: translateY(-6px);
+    }
+}
