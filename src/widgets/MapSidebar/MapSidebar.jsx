@@ -25,6 +25,7 @@ export function MapSidebar({
     onHoverPlace,
 }) {
     const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_COUNT);
+    const [filtersOpen, setFiltersOpen] = useState(false);
 
     const visiblePlaces = useMemo(() => {
         return places.slice(0, visibleCount);
@@ -74,40 +75,48 @@ export function MapSidebar({
 
     return (
         <aside className="map-sidebar">
-            <a className="map-sidebar__home" href="/">
-                ← На главную
-            </a>
+            <div className="map-sidebar__top">
+                <a className="map-sidebar__home" href="/">
+                    ← На главную
+                </a>
+
+                <button
+                    className="map-sidebar__filter-toggle"
+                    type="button"
+                    onClick={() => setFiltersOpen((value) => !value)}
+                    aria-label="Открыть категории"
+                    aria-expanded={filtersOpen}
+                >
+                    ☰
+                </button>
+            </div>
 
             <div className="map-sidebar__head">
-                <p className="map-sidebar__eyebrow">Карта мест</p>
-
                 <h1>Исследуйте территорию</h1>
-
-                <p>
-                    Выберите категорию или точку на карте. Фильтры помогают оставить
-                    только нужные объекты.
-                </p>
             </div>
 
-            <div className="map-sidebar__filters">
-                {categories.map((category) => (
-                    <button
-                        key={category.id}
-                        className={
-                            activeCategory === category.id
-                                ? "map-sidebar__filter is-active"
-                                : "map-sidebar__filter"
-                        }
-                        type="button"
-                        onClick={() => {
-                            setVisibleCount(INITIAL_VISIBLE_COUNT);
-                            onSelectCategory(category.id);
-                        }}
-                    >
-                        {category.title}
-                    </button>
-                ))}
-            </div>
+            {filtersOpen && (
+                <div className="map-sidebar__filters">
+                    {categories.map((category) => (
+                        <button
+                            key={category.id}
+                            className={
+                                activeCategory === category.id
+                                    ? "map-sidebar__filter is-active"
+                                    : "map-sidebar__filter"
+                            }
+                            type="button"
+                            onClick={() => {
+                                setVisibleCount(INITIAL_VISIBLE_COUNT);
+                                setFiltersOpen(false);
+                                onSelectCategory(category.id);
+                            }}
+                        >
+                            {category.title}
+                        </button>
+                    ))}
+                </div>
+            )}
 
             <div className="map-sidebar__count">
                 Найдено объектов: <strong>{places.length}</strong>
@@ -120,15 +129,11 @@ export function MapSidebar({
                         className="map-place-card"
                         type="button"
                         onClick={() => onSelectPlace(place)}
-                        onMouseEnter={() => onHoverPlace(place)}
-                        onMouseLeave={() => onHoverPlace(null)}
+                        onMouseEnter={() => onHoverPlace?.(place)}
+                        onMouseLeave={() => onHoverPlace?.(null)}
                     >
-                        <span className="map-place-card__category">
-                            {place.categoryTitle}
-                        </span>
-
+                        <span className="map-place-card__category">{place.categoryTitle}</span>
                         <strong>{place.title}</strong>
-
                         <small>{place.shortDescription || place.description}</small>
                     </button>
                 ))}

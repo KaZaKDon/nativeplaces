@@ -13,7 +13,7 @@
     inset: 0;
     z-index: -3;
 
-    background-image: url("/images/categories/categories-bg.png");
+    background-image: url("/images/categories/categories-bg.webp");
     background-size: cover;
     background-position: center;
 }
@@ -123,9 +123,6 @@
         0 26px 70px rgba(0, 0, 0, 0.48),
         inset 0 0 0 1px rgba(255, 255, 255, 0.04);
 
-    -webkit-backdrop-filter: blur(8px);
-    backdrop-filter: blur(8px);
-
     transform: rotate(var(--card-rotate, 0deg));
     transition:
         transform 0.28s ease,
@@ -141,9 +138,9 @@
 
     background-image: var(--card-image);
     background-size: cover;
-    background-position: center;
+    background-position: var(--card-position, center);
 
-    opacity: 0.72;
+    opacity: 0.9;
     transform: scale(1.03);
 }
 
@@ -191,32 +188,38 @@
 /* Потом заменим картинки на реальные */
 .category-card--real-estate {
     --card-rotate: -3deg;
-    --card-image: linear-gradient(135deg, rgba(214, 167, 95, 0.35), rgba(10, 15, 24, 0.4));
+    --card-image: url("/images/categories/cards/real-estate.webp");
+    --card-position: center;
 }
 
 .category-card--rent {
     --card-rotate: 1deg;
-    --card-image: linear-gradient(135deg, rgba(125, 211, 252, 0.26), rgba(10, 15, 24, 0.4));
+    --card-image: url("/images/categories/cards/rent.webp");
+    --card-position: center;
 }
 
 .category-card--recreation {
     --card-rotate: 3deg;
-    --card-image: linear-gradient(135deg, rgba(192, 132, 252, 0.24), rgba(10, 15, 24, 0.4));
+    --card-image: url("/images/categories/cards/recreation.webp");
+    --card-position: center;
 }
 
 .category-card--fishing {
     --card-rotate: 2deg;
-    --card-image: linear-gradient(135deg, rgba(20, 184, 166, 0.3), rgba(10, 15, 24, 0.4));
+    --card-image: url("/images/categories/cards/fishing.webp");
+    --card-position: center;
 }
 
 .category-card--hunting {
     --card-rotate: -2deg;
-    --card-image: linear-gradient(135deg, rgba(139, 94, 60, 0.36), rgba(10, 15, 24, 0.4));
+    --card-image: url("/images/categories/cards/hunting.webp");
+    --card-position: center;
 }
 
 .category-card--nature {
     --card-rotate: 2deg;
-    --card-image: linear-gradient(135deg, rgba(124, 143, 91, 0.34), rgba(10, 15, 24, 0.4));
+    --card-image: url("/images/categories/cards/nature.webp");
+    --card-position: left center;
 }
 
 @media (max-width: 1100px) {
@@ -253,12 +256,26 @@
         grid-template-columns: 1fr;
         gap: 16px;
         margin-top: 30px;
-        padding: 0 18px 42px;
+        padding: 0 32px 42px;
     }
 
     .category-card {
-        min-height: 230px;
-        transform: none;
+        min-height: 190px;
+        padding: 24px;
+        transform: rotate(var(--card-rotate, 0deg));
+    }
+
+    .category-card h2 {
+        font-size: 28px;
+    }
+
+    .category-card p {
+        font-size: 15px;
+        line-height: 1.35;
+    }
+
+    .category-card:active {
+        transform: translateY(-4px) rotate(0deg) scale(0.98);
     }
 
     .category-card:hover {
