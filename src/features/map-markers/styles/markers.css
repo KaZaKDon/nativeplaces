@@ -1,0 +1,26 @@
+.place-marker {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.place-marker__inner {
+    width: 16px;
+    height: 16px;
+
+    border-radius: 50%;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    font-size: 10px;
+
+    transition:
+        transform 0.2s ease,
+        opacity 0.2s ease;
+}
+
+.place-marker__inner:hover {
+    transform: scale(1.2);
+}

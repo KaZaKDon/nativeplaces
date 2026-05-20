@@ -1,27 +1,24 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+
+import { mapCategories } from "../../data/map/categories";
 
 import "./MapSidebar.css";
 
 const INITIAL_VISIBLE_COUNT = 15;
 const LOAD_MORE_STEP = 15;
 
-const categories = [
-    { id: "all", title: "Все" },
-    { id: "real-estate", title: "Недвижимость" },
-    { id: "rent", title: "Аренда" },
-    { id: "recreation", title: "Базы отдыха" },
-    { id: "fishing", title: "Рыбалка" },
-    { id: "hunting", title: "Охота" },
-    { id: "nature", title: "Природа" },
-];
-
 export function MapSidebar({
     places = [],
     selectedPlace,
+    hoveredPlace,
     activeCategory = "all",
+    search = "",
+    isMobileSheet = false,
     onSelectCategory,
     onSelectPlace,
     onClearSelected,
+    onSearchChange,
     onHoverPlace,
 }) {
     const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_COUNT);
@@ -33,9 +30,27 @@ export function MapSidebar({
 
     const hasMorePlaces = visibleCount < places.length;
 
+    function handleSearchChange(event) {
+        setVisibleCount(INITIAL_VISIBLE_COUNT);
+        onSearchChange(event.target.value);
+    }
+
+    function handleCategorySelect(categoryId) {
+        setVisibleCount(INITIAL_VISIBLE_COUNT);
+        setFiltersOpen(false);
+        onSelectCategory(categoryId);
+    }
+
     if (selectedPlace) {
+        const tags = [
+            selectedPlace.locality,
+            selectedPlace.area,
+            selectedPlace.landArea,
+            ...(selectedPlace.tags ?? []),
+        ].filter(Boolean);
+
         return (
-            <aside className="map-sidebar">
+            <aside className={isMobileSheet ? "map-sidebar map-sidebar--sheet" : "map-sidebar"}>
                 <button className="map-sidebar__back" type="button" onClick={onClearSelected}>
                     ← Назад к списку
                 </button>
@@ -59,26 +74,37 @@ export function MapSidebar({
 
                     <p className="place-panel__description">{selectedPlace.description}</p>
 
-                    <div className="place-panel__meta">
-                        {selectedPlace.area && <span>{selectedPlace.area}</span>}
-                        {selectedPlace.landArea && <span>{selectedPlace.landArea}</span>}
-                        {selectedPlace.locality && <span>{selectedPlace.locality}</span>}
-                    </div>
+                    {tags.length > 0 && (
+                        <div className="place-panel__tags">
+                            {tags.map((tag) => (
+                                <button
+                                    key={tag}
+                                    type="button"
+                                    className="place-panel__tag"
+                                >
+                                    {tag}
+                                </button>
+                            ))}
+                        </div>
+                    )}
 
-                    <button className="place-panel__button" type="button">
+                    <Link
+                        className="place-panel__button"
+                        to={`/place/${selectedPlace.slug}`}
+                    >
                         Подробнее
-                    </button>
+                    </Link>
                 </article>
             </aside>
         );
     }
 
     return (
-        <aside className="map-sidebar">
+        <aside className={isMobileSheet ? "map-sidebar map-sidebar--sheet" : "map-sidebar"}>
             <div className="map-sidebar__top">
-                <a className="map-sidebar__home" href="/">
+                <Link className="map-sidebar__home" to="/">
                     ← На главную
-                </a>
+                </Link>
 
                 <button
                     className="map-sidebar__filter-toggle"
@@ -95,9 +121,19 @@ export function MapSidebar({
                 <h1>Исследуйте территорию</h1>
             </div>
 
+            <label className="map-sidebar__search">
+                <span>Поиск по карте</span>
+                <input
+                    type="search"
+                    value={search}
+                    placeholder="Название, район, описание..."
+                    onChange={handleSearchChange}
+                />
+            </label>
+
             {filtersOpen && (
                 <div className="map-sidebar__filters">
-                    {categories.map((category) => (
+                    {mapCategories.map((category) => (
                         <button
                             key={category.id}
                             className={
@@ -106,11 +142,7 @@ export function MapSidebar({
                                     : "map-sidebar__filter"
                             }
                             type="button"
-                            onClick={() => {
-                                setVisibleCount(INITIAL_VISIBLE_COUNT);
-                                setFiltersOpen(false);
-                                onSelectCategory(category.id);
-                            }}
+                            onClick={() => handleCategorySelect(category.id)}
                         >
                             {category.title}
                         </button>
@@ -123,20 +155,24 @@ export function MapSidebar({
             </div>
 
             <div className="map-sidebar__list">
-                {visiblePlaces.map((place) => (
-                    <button
-                        key={place.id}
-                        className="map-place-card"
-                        type="button"
-                        onClick={() => onSelectPlace(place)}
-                        onMouseEnter={() => onHoverPlace?.(place)}
-                        onMouseLeave={() => onHoverPlace?.(null)}
-                    >
-                        <span className="map-place-card__category">{place.categoryTitle}</span>
-                        <strong>{place.title}</strong>
-                        <small>{place.shortDescription || place.description}</small>
-                    </button>
-                ))}
+                {visiblePlaces.map((place) => {
+                    const isHovered = hoveredPlace?.id === place.id;
+
+                    return (
+                        <button
+                            key={place.id}
+                            className={isHovered ? "map-place-card is-hovered" : "map-place-card"}
+                            type="button"
+                            onClick={() => onSelectPlace(place)}
+                            onMouseEnter={() => onHoverPlace?.(place)}
+                            onMouseLeave={() => onHoverPlace?.(null)}
+                        >
+                            <span className="map-place-card__category">{place.categoryTitle}</span>
+                            <strong>{place.title}</strong>
+                            <small>{place.shortDescription || place.description}</small>
+                        </button>
+                    );
+                })}
             </div>
 
             {hasMorePlaces && (

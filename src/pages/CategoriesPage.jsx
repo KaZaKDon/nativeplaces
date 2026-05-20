@@ -1,43 +1,16 @@
+import { Link } from "react-router-dom";
+
+import { categoryCards } from "../data/map/categoryCards";
+import { createMapCategorySearchParams } from "../shared/map/categoryUrl";
+
 import "./CategoriesPage.css";
 
-const categories = [
-    {
-        id: "real-estate",
-        title: "Недвижимость",
-        description: "Дома, участки и загородные объекты у воды и природы.",
-        link: "/map?category=real-estate",
-    },
-    {
-        id: "rent",
-        title: "Аренда",
-        description: "Дома, гостиницы, глэмпинги и места для временного отдыха.",
-        link: "/map?category=rent",
-    },
-    {
-        id: "recreation",
-        title: "Базы отдыха",
-        description: "Базы, туркомплексы и места для отдыха на природе.",
-        link: "/map?category=recreation",
-    },
-    {
-        id: "fishing",
-        title: "Рыбалка",
-        description: "Реки, водоемы, берега и места для рыбалки.",
-        link: "/map?category=fishing",
-    },
-    {
-        id: "hunting",
-        title: "Охота",
-        description: "Охотничьи территории, базы и природные зоны.",
-        link: "/map?category=hunting",
-    },
-    {
-        id: "nature",
-        title: "Природа",
-        description: "Озера, степи, леса и природные достопримечательности.",
-        link: "/map?category=nature",
-    },
-];
+function createCategoryMapLink(categoryId) {
+    const searchParams = createMapCategorySearchParams(categoryId);
+    const search = searchParams.toString();
+
+    return search ? `/map?${search}` : "/map";
+}
 
 export function CategoriesPage() {
     return (
@@ -45,17 +18,16 @@ export function CategoriesPage() {
             <div className="categories-page__overlay" />
 
             <header className="categories-header">
-                <a className="categories-header__back" href="/">
+                <Link className="categories-header__back" to="/">
                     ← На главную
-                </a>
+                </Link>
 
-                <a className="categories-header__map" href="/map">
+                <Link className="categories-header__map" to="/map">
                     Открыть всю карту
-                </a>
+                </Link>
             </header>
 
             <section className="categories-hero">
-
                 <h1>Категории мест</h1>
 
                 <p>
@@ -65,11 +37,11 @@ export function CategoriesPage() {
             </section>
 
             <section className="category-board" aria-label="Категории">
-                {categories.map((category, index) => (
-                    <a
+                {categoryCards.map((category, index) => (
+                    <Link
                         key={category.id}
                         className={`category-card category-card--${category.id}`}
-                        href={category.link}
+                        to={createCategoryMapLink(category.id)}
                         style={{
                             "--i": index,
                         }}
@@ -77,7 +49,7 @@ export function CategoriesPage() {
                         <h2>{category.title}</h2>
 
                         <p>{category.description}</p>
-                    </a>
+                    </Link>
                 ))}
             </section>
         </main>
