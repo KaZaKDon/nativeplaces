@@ -22,6 +22,13 @@ export function CategoriesPage() {
                     ← На главную
                 </Link>
 
+                <Link
+                    className="categories-page__add-button"
+                    to="/submit"
+                >
+                    Добавить место
+                </Link>
+
                 <Link className="categories-header__map" to="/map">
                     Открыть всю карту
                 </Link>

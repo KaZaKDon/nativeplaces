@@ -74,9 +74,46 @@
 }
 
 .hero__login {
-    min-height: 46px;
-    padding: 0 22px;
+    min-height: 42px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 0 18px;
+
+    border: 1px solid rgba(255, 255, 255, 0.14);
     border-radius: 999px;
+
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 248, 232, 0.92);
+
+    font-weight: 800;
+    text-decoration: none;
+
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+
+    transition:
+        transform 0.2s ease,
+        border-color 0.2s ease,
+        background 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.hero__login:hover {
+    transform: translateY(-2px);
+    border-color: rgba(244, 213, 141, 0.38);
+    background: rgba(244, 213, 141, 0.12);
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.24);
+}
+
+.hero__login:active {
+    transform: translateY(0);
+}
+
+.hero__login--hidden {
+    display: none;
 }
 
 .hero__content {

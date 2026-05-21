@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 import "./HomePage.css";
 
 export function HomePage() {
@@ -7,14 +9,18 @@ export function HomePage() {
                 <div className="hero__overlay" />
 
                 <header className="hero__header">
-                    <a className="hero__brand" href="/" aria-label="Родные места">
+                    <Link className="hero__brand" to="/" aria-label="Родные места">
                         <span className="hero__brand-mark">⌖</span>
-                    </a>
+                    </Link>
 
                     <nav className="hero__nav">
-                        <button className="hero__login" type="button">
+                        <Link className="hero__login hero__login--hidden" to="/login">
                             Войти
-                        </button>
+                        </Link>
+
+                        <Link className="hero__login" to="/account">
+                            Кабинет
+                        </Link>
                     </nav>
                 </header>
 
@@ -28,13 +34,13 @@ export function HomePage() {
                     </div>
 
                     <div className="hero__actions">
-                        <a className="hero__button hero__button--primary" href="/map">
+                        <Link className="hero__button hero__button--primary" to="/map">
                             Исследовать карту
-                        </a>
+                        </Link>
 
-                        <a className="hero__button hero__button--secondary" href="/categories">
+                        <Link className="hero__button hero__button--secondary" to="/categories">
                             Категории
-                        </a>
+                        </Link>
                     </div>
                 </div>
             </section>

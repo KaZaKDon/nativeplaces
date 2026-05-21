@@ -6,6 +6,7 @@ import { useMapState } from "../features/map-state/useMapState";
 import { MapBottomSheet } from "../features/map-bottom-sheet/MapBottomSheet";
 import { filterPlaces } from "../shared/map/filterPlaces";
 import { useDebouncedValue } from "../shared/search/useDebouncedValue";
+import { getLocalPlaces } from "../shared/storage/localPlacesStorage";
 import { MapView } from "../widgets/MapView/MapView";
 import { MapSidebar } from "../widgets/MapSidebar/MapSidebar";
 
@@ -15,20 +16,24 @@ export function MapPage() {
     const mapState = useMapState();
     const debouncedSearch = useDebouncedValue(mapState.search, 250);
 
+    const allPlaces = useMemo(() => {
+        return [...places, ...getLocalPlaces()];
+    }, []);
+
     const filteredPlaces = useMemo(() => {
-        return filterPlaces(places, {
+        return filterPlaces(allPlaces, {
             category: mapState.category,
             search: debouncedSearch,
         });
-    }, [mapState.category, debouncedSearch]);
+    }, [allPlaces, mapState.category, debouncedSearch]);
 
     const selectedPlace = useMemo(() => {
-        return places.find((place) => String(place.id) === mapState.selectedPlaceId) ?? null;
-    }, [mapState.selectedPlaceId]);
+        return allPlaces.find((place) => String(place.id) === mapState.selectedPlaceId) ?? null;
+    }, [allPlaces, mapState.selectedPlaceId]);
 
     const hoveredPlace = useMemo(() => {
-        return places.find((place) => String(place.id) === mapState.hoveredPlaceId) ?? null;
-    }, [mapState.hoveredPlaceId]);
+        return allPlaces.find((place) => String(place.id) === mapState.hoveredPlaceId) ?? null;
+    }, [allPlaces, mapState.hoveredPlaceId]);
 
     function handleSelectPlace(place) {
         mapState.setSelectedPlaceId(String(place.id));

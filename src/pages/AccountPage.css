@@ -1,0 +1,107 @@
+.account-page {
+    min-height: 100svh;
+    background:
+        linear-gradient(rgba(3, 7, 14, 0.72), rgba(3, 7, 14, 0.82)),
+        radial-gradient(circle at 50% 0%, rgba(244, 213, 141, 0.14), transparent 36%),
+        linear-gradient(135deg, #07111f 0%, #101827 48%, #060914 100%);
+    color: rgba(255, 248, 232, 0.94);
+}
+
+.account-page__hero {
+    min-height: 100svh;
+    padding: clamp(28px, 5vw, 76px);
+}
+
+.account-page__back {
+    display: inline-flex;
+    margin-bottom: 34px;
+    color: rgba(255, 248, 232, 0.7);
+    text-decoration: none;
+}
+
+.account-page__back:hover {
+    color: rgba(255, 248, 232, 0.95);
+}
+
+.account-page__eyebrow {
+    margin: 0 0 14px;
+    text-align: center;
+    color: var(--color-gold-light);
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+}
+
+.account-page h1 {
+    max-width: 860px;
+    margin: 0 auto;
+    text-align: center;
+    font-size: clamp(32px, 5vw, 62px);
+    line-height: 0.96;
+    letter-spacing: -0.055em;
+}
+
+.account-page__grid {
+    width: min(920px, 100%);
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 22px;
+    margin: 52px auto 0;
+}
+
+.account-card {
+    min-height: 230px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    padding: 34px;
+    text-align: center;
+
+    border-radius: 32px;
+    border: 1px solid rgba(255, 255, 255, 0.13);
+
+    background:
+        radial-gradient(circle at 50% 0%, rgba(244, 213, 141, 0.1), transparent 42%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.04));
+
+    -webkit-backdrop-filter: blur(18px);
+    backdrop-filter: blur(18px);
+
+    transition:
+        transform 0.25s ease,
+        border-color 0.25s ease,
+        box-shadow 0.25s ease,
+        background 0.25s ease;
+}
+
+.account-card:hover {
+    transform: translateY(-6px);
+    border-color: rgba(244, 213, 141, 0.28);
+    box-shadow: 0 28px 80px rgba(0, 0, 0, 0.28);
+}
+
+.account-card h2 {
+    margin: 0;
+    font-size: 30px;
+    line-height: 1.1;
+}
+
+.account-card p {
+    max-width: 280px;
+    margin: 18px 0 0;
+    color: rgba(255, 248, 232, 0.64);
+    line-height: 1.6;
+}
+
+@media (max-width: 900px) {
+    .account-page__grid {
+        grid-template-columns: 1fr;
+    }
+
+    .account-page h1 {
+        font-size: clamp(34px, 11vw, 54px);
+    }
+}

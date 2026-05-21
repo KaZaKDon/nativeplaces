@@ -3,17 +3,24 @@ import { Link, useParams } from "react-router-dom";
 
 import { places } from "../data/map/places";
 import { createPlaceMapUrl } from "../entities/place/lib/createPlaceMapUrl";
+import { createPlaceRouteUrl } from "../entities/place/lib/createPlaceRouteUrl";
 import { getPlaceBySlug } from "../entities/place/lib/getPlaceBySlug";
 import { getPlaceImages } from "../entities/place/lib/getPlaceImages";
+import { getLocalPlaces } from "../shared/storage/localPlacesStorage";
 
 import "./PlacePage.css";
 
 export function PlacePage() {
     const { slug } = useParams();
-    const place = getPlaceBySlug(places, slug);
+    const allPlaces = useMemo(() => {
+    return [...places, ...getLocalPlaces()];
+}, []);
+
+const place = getPlaceBySlug(allPlaces, slug);
 
     const [activeImageIndex, setActiveImageIndex] = useState(0);
     const [viewerOpen, setViewerOpen] = useState(false);
+    const [messageModalOpen, setMessageModalOpen] = useState(false);
 
     const images = useMemo(() => getPlaceImages(place), [place]);
 
@@ -85,6 +92,8 @@ export function PlacePage() {
         ...(place.tags ?? []),
     ].filter(Boolean);
 
+    const routeUrl = createPlaceRouteUrl(place);
+
     return (
         <main className="place-page">
             <section className="place-hero">
@@ -145,16 +154,24 @@ export function PlacePage() {
                             )}
                         </>
                     ) : (
-                        <div className="place-hero__placeholder">
-                            Фото объекта
-                        </div>
+                        <div className="place-hero__placeholder">Фото объекта</div>
                     )}
                 </div>
 
                 <div className="place-hero__content">
-                    <Link className="place-page__back" to={createPlaceMapUrl(place)}>
-                        ← Вернуться к карте
-                    </Link>
+                    <div className="place-page__topbar">
+                        <Link className="place-page__back" to={createPlaceMapUrl(place)}>
+                            ← Вернуться к карте
+                        </Link>
+
+                        <button
+                            className="place-page__message-button"
+                            type="button"
+                            onClick={() => setMessageModalOpen(true)}
+                        >
+                            Сообщение автору
+                        </button>
+                    </div>
 
                     <p className="place-page__eyebrow">{place.categoryTitle}</p>
 
@@ -180,6 +197,17 @@ export function PlacePage() {
                         <Link className="place-page__button" to={createPlaceMapUrl(place)}>
                             Открыть на карте
                         </Link>
+
+                        {routeUrl && (
+                            <a
+                                className="place-page__button place-page__button--route"
+                                href={routeUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                            >
+                                Построить маршрут
+                            </a>
+                        )}
 
                         <Link
                             className="place-page__button place-page__button--ghost"
@@ -232,6 +260,55 @@ export function PlacePage() {
 
                     <div className="image-viewer__counter">
                         {activeImageIndex + 1} / {images.length}
+                    </div>
+                </div>
+            )}
+
+            {messageModalOpen && (
+                <div className="message-modal" role="dialog" aria-modal="true">
+                    <div className="message-modal__card">
+                        <button
+                            className="message-modal__close"
+                            type="button"
+                            onClick={() => setMessageModalOpen(false)}
+                            aria-label="Закрыть окно"
+                        >
+                            ×
+                        </button>
+
+                        <p className="place-page__eyebrow">Сообщение автору</p>
+
+                        <h2>{place.title}</h2>
+
+                        <div className="message-chat">
+                            <div className="message-chat__row message-chat__row--author">
+                                <div className="message-chat__avatar">А</div>
+
+                                <div className="message-chat__bubble">
+                                    <strong>Автор объявления</strong>
+                                    <p>Задайте вопрос по этому объекту.</p>
+                                </div>
+                            </div>
+
+                            <div className="message-chat__row message-chat__row--user">
+                                <div className="message-chat__bubble message-chat__bubble--input">
+                                    <strong>Вы</strong>
+
+                                    <textarea
+                                        rows="5"
+                                        placeholder="Здравствуйте! Подскажите, объявление актуально?"
+                                    />
+                                </div>
+
+                                <div className="message-chat__avatar message-chat__avatar--user">
+                                    Я
+                                </div>
+                            </div>
+                        </div>
+
+                        <button className="place-page__button message-modal__submit" type="button">
+                            Отправить
+                        </button>
                     </div>
                 </div>
             )}

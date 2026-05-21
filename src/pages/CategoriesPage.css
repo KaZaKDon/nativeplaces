@@ -35,7 +35,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 28px clamp(20px, 4vw, 64px);
+    padding: 18px clamp(20px, 4vw, 64px);
 }
 
 .categories-header__back,
@@ -68,7 +68,7 @@
 .categories-hero h1 {
     margin: 0;
     font-family: Georgia, "Times New Roman", serif;
-    font-size: clamp(32px, 4vw, 68px);
+    font-size: clamp(25px, 3.5vw, 58px);
     font-weight: 500;
     line-height: 0.95;
     letter-spacing: 0.04em;
@@ -81,7 +81,7 @@
     max-width: 620px;
     margin: 18px auto 0;
     color: rgba(255, 229, 177, 0.86);
-    font-size: clamp(16px, 1.3vw, 20px);
+    font-size: clamp(12px, 1.3vw, 16px);
     line-height: 1.45;
     text-shadow: 0 10px 34px rgba(0, 0, 0, 0.65);
 }
@@ -220,6 +220,47 @@
     --card-rotate: 2deg;
     --card-image: url("/images/categories/cards/nature.webp");
     --card-position: left center;
+}
+
+.categories-page__add-button {
+    min-height: 46px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 0 18px;
+
+    border-radius: 999px;
+    border: 1px solid rgba(168, 202, 150, 0.28);
+
+    background:
+        linear-gradient(
+            135deg,
+            rgba(96, 126, 88, 0.92),
+            rgba(47, 63, 44, 0.92)
+        );
+
+    color: #f6f3ea;
+
+    font-size: 14px;
+    font-weight: 800;
+
+    text-decoration: none;
+
+    transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease,
+        border-color 0.2s ease;
+}
+
+.categories-page__add-button:hover {
+    transform: translateY(-1px);
+
+    box-shadow:
+        0 16px 36px rgba(0, 0, 0, 0.24);
+
+    border-color: rgba(188, 224, 178, 0.34);
 }
 
 @media (max-width: 1100px) {
