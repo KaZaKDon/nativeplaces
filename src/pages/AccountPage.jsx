@@ -1,25 +1,8 @@
 import { Link } from "react-router-dom";
 
-import "./AccountPage.css";
+import { AccountBook } from "../widgets/account-book";
 
-const accountSections = [
-    {
-        title: "Мои места",
-        description: "Объекты, которые вы добавили на карту.",
-    },
-    {
-        title: "Сообщения",
-        description: "Вопросы по вашим объявлениям и объектам.",
-    },
-    {
-        title: "Избранное",
-        description: "Сохранённые места, маршруты и объявления.",
-    },
-    {
-        title: "Профиль",
-        description: "Имя, контакты и данные аккаунта.",
-    },
-];
+import "./AccountPage.css";
 
 export function AccountPage() {
     return (
@@ -29,18 +12,7 @@ export function AccountPage() {
                     ← На главную
                 </Link>
 
-                <p className="account-page__eyebrow">Личный кабинет</p>
-
-                <h1>Ваши места, сообщения и избранное</h1>
-
-                <div className="account-page__grid">
-                    {accountSections.map((section) => (
-                        <article className="account-card" key={section.title}>
-                            <h2>{section.title}</h2>
-                            <p>{section.description}</p>
-                        </article>
-                    ))}
-                </div>
+                <AccountBook />
             </section>
         </main>
     );

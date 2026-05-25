@@ -106,6 +106,10 @@ export function MapSidebar({
                     ← На главную
                 </Link>
 
+                <Link className="map-sidebar__add-place" to="/submit">
+                    + Добавить место
+                </Link>
+
                 <button
                     className="map-sidebar__filter-toggle"
                     type="button"

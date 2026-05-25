@@ -595,7 +595,27 @@ img {
     letter-spacing: -0.04em;
 }
 
+.place-page__favorite {
+    min-height: 46px;
+    padding: 0 18px;
 
+    border: 1px solid rgba(244, 213, 141, 0.24);
+    border-radius: 999px;
+
+    background: rgba(244, 213, 141, 0.1);
+    color: rgba(255, 248, 232, 0.94);
+
+    font: inherit;
+    font-size: 14px;
+    font-weight: 800;
+
+    cursor: pointer;
+}
+
+.place-page__favorite--active {
+    background: rgba(244, 213, 141, 0.24);
+    border-color: rgba(244, 213, 141, 0.4);
+}
 
 @media (max-width: 900px) {
     .place-hero {

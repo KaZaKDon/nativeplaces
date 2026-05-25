@@ -6,23 +6,33 @@ import { createPlaceMapUrl } from "../entities/place/lib/createPlaceMapUrl";
 import { createPlaceRouteUrl } from "../entities/place/lib/createPlaceRouteUrl";
 import { getPlaceBySlug } from "../entities/place/lib/getPlaceBySlug";
 import { getPlaceImages } from "../entities/place/lib/getPlaceImages";
+import {
+    isFavorite,
+    toggleFavorite,
+} from "../shared/storage/favoritesStorage";
 import { getLocalPlaces } from "../shared/storage/localPlacesStorage";
 
 import "./PlacePage.css";
 
 export function PlacePage() {
     const { slug } = useParams();
-    const allPlaces = useMemo(() => {
-    return [...places, ...getLocalPlaces()];
-}, []);
 
-const place = getPlaceBySlug(allPlaces, slug);
+    const allPlaces = useMemo(() => {
+        return [...places, ...getLocalPlaces()];
+    }, []);
+
+    const place = getPlaceBySlug(allPlaces, slug);
+
+    const images = useMemo(() => {
+        return place ? getPlaceImages(place) : [];
+    }, [place]);
 
     const [activeImageIndex, setActiveImageIndex] = useState(0);
     const [viewerOpen, setViewerOpen] = useState(false);
     const [messageModalOpen, setMessageModalOpen] = useState(false);
-
-    const images = useMemo(() => getPlaceImages(place), [place]);
+    const [favorite, setFavorite] = useState(() => {
+        return place ? isFavorite(place.id) : false;
+    });
 
     const showPreviousImage = useCallback(() => {
         setActiveImageIndex((currentIndex) => {
@@ -67,6 +77,15 @@ const place = getPlaceBySlug(allPlaces, slug);
     function openViewer(index) {
         setActiveImageIndex(index);
         setViewerOpen(true);
+    }
+
+    function handleToggleFavorite() {
+        if (!place) {
+            return;
+        }
+
+        toggleFavorite(place.id);
+        setFavorite((current) => !current);
     }
 
     if (!place) {
@@ -138,7 +157,7 @@ const place = getPlaceBySlug(allPlaces, slug);
                                     <div className="place-hero__dots">
                                         {images.map((image, index) => (
                                             <button
-                                                key={image}
+                                                key={`${image}-${index}`}
                                                 className={
                                                     index === activeImageIndex
                                                         ? "place-hero__dot is-active"
@@ -194,6 +213,18 @@ const place = getPlaceBySlug(allPlaces, slug);
                     )}
 
                     <div className="place-page__actions">
+                        <button
+                            className={
+                                favorite
+                                    ? "place-page__favorite place-page__favorite--active"
+                                    : "place-page__favorite"
+                            }
+                            type="button"
+                            onClick={handleToggleFavorite}
+                        >
+                            {favorite ? "В избранном" : "В избранное"}
+                        </button>
+
                         <Link className="place-page__button" to={createPlaceMapUrl(place)}>
                             Открыть на карте
                         </Link>

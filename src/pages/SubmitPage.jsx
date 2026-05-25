@@ -1,24 +1,24 @@
 import { useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import {
     getFieldsByCategory,
     getTypesByCategory,
     submitCategories,
 } from "../data/submit/categoryFields";
+import {
+    getLocalPlaceById,
+    saveLocalPlace,
+    updateLocalPlace,
+} from "../shared/storage/localPlacesStorage";
+import {
+    clearSubmitDraft,
+    getSubmitDraft,
+    saveSubmitDraft,
+} from "../shared/storage/submitDraftStorage";
 import { getSubmitLocation } from "../shared/storage/submitLocationStorage";
-import { saveLocalPlace } from "../shared/storage/localPlacesStorage";
 
 import "./SubmitPage.css";
-
-const INITIAL_FORM_DATA = {
-    title: "",
-    shortDescription: "",
-    fullDescription: "",
-    address: "",
-    contactName: "",
-    contactValue: "",
-};
 
 function createSlug(value) {
     const baseSlug = value
@@ -28,9 +28,7 @@ function createSlug(value) {
         .replace(/[^a-zа-я0-9]+/gi, "-")
         .replace(/^-+|-+$/g, "");
 
-    const suffix = Date.now();
-
-    return `${baseSlug || "place"}-${suffix}`;
+    return `${baseSlug || "place"}-${Date.now()}`;
 }
 
 function createLocalId() {
@@ -45,13 +43,71 @@ function getCategoryTitle(categoryId) {
     return submitCategories.find((category) => category.id === categoryId)?.title ?? "";
 }
 
+function getFormDataFromPlace(place) {
+    return {
+        title: place?.title ?? "",
+        shortDescription: place?.shortDescription ?? place?.description ?? "",
+        fullDescription: place?.fullDescription ?? "",
+        address: place?.address ?? place?.locality ?? "",
+        contactName: place?.contact?.name ?? "",
+        contactValue: place?.contact?.value ?? "",
+    };
+}
+
+function readFileAsDataUrl(file) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+
+        reader.onload = () => {
+            resolve(String(reader.result));
+        };
+
+        reader.readAsDataURL(file);
+    });
+}
+
 export function SubmitPage() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
 
-    const [selectedCategory, setSelectedCategory] = useState("");
-    const [selectedType, setSelectedType] = useState("");
-    const [formData, setFormData] = useState(INITIAL_FORM_DATA);
-    const [extraFields, setExtraFields] = useState({});
+    const editPlaceId = searchParams.get("edit");
+    const editingPlace = editPlaceId ? getLocalPlaceById(editPlaceId) : null;
+    const initialDraft = editPlaceId ? null : getSubmitDraft();
+
+    const isEditMode = Boolean(editPlaceId && editingPlace);
+
+    const [selectedCategory, setSelectedCategory] = useState(() => {
+        return initialDraft?.selectedCategory ?? editingPlace?.categorySlug ?? "";
+    });
+
+    const [selectedType, setSelectedType] = useState(() => {
+        return initialDraft?.selectedType ?? editingPlace?.typeSlug ?? "";
+    });
+
+    const [formData, setFormData] = useState(() => {
+        return initialDraft?.formData ?? getFormDataFromPlace(editingPlace);
+    });
+
+    const [extraFields, setExtraFields] = useState(() => {
+        return initialDraft?.extraFields ?? editingPlace?.extraFields ?? {};
+    });
+
+    const [gallery, setGallery] = useState(() => {
+        if (initialDraft?.gallery?.length) {
+            return initialDraft.gallery;
+        }
+
+        if (editingPlace?.gallery?.length) {
+            return editingPlace.gallery;
+        }
+
+        if (editingPlace?.image) {
+            return [editingPlace.image];
+        }
+
+        return [];
+    });
+
     const [submitStatus, setSubmitStatus] = useState("");
 
     const [submitLocation] = useState(() => {
@@ -65,6 +121,25 @@ export function SubmitPage() {
     const categoryTypes = useMemo(() => {
         return getTypesByCategory(selectedCategory);
     }, [selectedCategory]);
+
+    function getCurrentDraft() {
+        return {
+            selectedCategory,
+            selectedType,
+            formData,
+            extraFields,
+            gallery,
+            updatedAt: new Date().toISOString(),
+        };
+    }
+
+    function handleSaveDraftBeforeLocation() {
+        if (isEditMode) {
+            return;
+        }
+
+        saveSubmitDraft(getCurrentDraft());
+    }
 
     function handleSelectCategory(categoryId) {
         setSelectedCategory(categoryId);
@@ -80,6 +155,8 @@ export function SubmitPage() {
             ...currentData,
             [name]: value,
         }));
+
+        setSubmitStatus("");
     }
 
     function handleExtraFieldChange(event) {
@@ -89,6 +166,27 @@ export function SubmitPage() {
             ...currentFields,
             [name]: value,
         }));
+
+        setSubmitStatus("");
+    }
+
+    async function handleImagesChange(event) {
+        const files = Array.from(event.target.files ?? []);
+
+        if (files.length === 0) {
+            return;
+        }
+
+        const images = await Promise.all(files.map(readFileAsDataUrl));
+
+        setGallery((currentGallery) => [...currentGallery, ...images]);
+        setSubmitStatus("");
+    }
+
+    function handleRemoveImage(indexToRemove) {
+        setGallery((currentGallery) => {
+            return currentGallery.filter((_, index) => index !== indexToRemove);
+        });
     }
 
     function handleSubmit(event) {
@@ -104,16 +202,18 @@ export function SubmitPage() {
             return;
         }
 
-        if (!submitLocation) {
+        if (!submitLocation && !editingPlace?.position) {
             setSubmitStatus("Укажите точку на карте.");
             return;
         }
 
         const categoryTitle = getCategoryTitle(selectedCategory);
+        const position = submitLocation
+            ? [submitLocation.lat, submitLocation.lng]
+            : editingPlace.position;
 
-        const newPlace = {
-            id: createLocalId(),
-            slug: createSlug(formData.title),
+        const placePayload = {
+            slug: editingPlace?.slug ?? createSlug(formData.title),
 
             title: formData.title.trim(),
 
@@ -135,10 +235,10 @@ export function SubmitPage() {
                 formData.address.trim(),
             ].filter(Boolean),
 
-            position: [submitLocation.lat, submitLocation.lng],
+            position,
 
-            image: "",
-            gallery: [],
+            image: gallery[0] ?? "",
+            gallery,
 
             contact: {
                 name: formData.contactName.trim(),
@@ -148,33 +248,71 @@ export function SubmitPage() {
             extraFields,
 
             source: "local",
-            status: "draft",
+            status: editingPlace?.status ?? "draft",
+        };
+
+        if (isEditMode) {
+            updateLocalPlace(editPlaceId, placePayload);
+            navigate(`/map?category=${selectedCategory}&place=${editPlaceId}`);
+            return;
+        }
+
+        const newPlace = {
+            id: createLocalId(),
+            ...placePayload,
             createdAt: new Date().toISOString(),
         };
 
         saveLocalPlace(newPlace);
-
-        setSubmitStatus("Объект сохранён локально. Он появится на карте в этом браузере.");
+        clearSubmitDraft();
 
         navigate(`/map?category=${selectedCategory}&place=${newPlace.id}`);
+    }
+
+    if (editPlaceId && !editingPlace) {
+        return (
+            <main className="submit-page">
+                <section className="submit-hero">
+                    <div className="submit-hero__content">
+                        <Link className="submit-page__back" to="/account">
+                            ← В кабинет
+                        </Link>
+
+                        <p className="submit-page__eyebrow">Редактирование</p>
+
+                        <h1>Объект не найден</h1>
+
+                        <p className="submit-hero__lead">
+                            Возможно, он был удалён из локального хранилища браузера.
+                        </p>
+                    </div>
+                </section>
+            </main>
+        );
     }
 
     return (
         <main className="submit-page">
             <section className="submit-hero">
                 <div className="submit-hero__content">
-                    <Link className="submit-page__back" to="/categories">
-                        ← Назад к категориям
+                    <Link className="submit-page__back" to={isEditMode ? "/account" : "/categories"}>
+                        {isEditMode ? "← В кабинет" : "← Назад к категориям"}
                     </Link>
 
-                    <p className="submit-page__eyebrow">Добавить место</p>
+                    <p className="submit-page__eyebrow">
+                        {isEditMode ? "Редактировать место" : "Добавить место"}
+                    </p>
 
-                    <h1>Расскажите о месте, объекте или объявлении</h1>
+                    <h1>
+                        {isEditMode
+                            ? "Обновите информацию об объекте"
+                            : "Расскажите о месте, объекте или объявлении"}
+                    </h1>
 
                     <p className="submit-hero__lead">
-                        Добавьте точку на карту: природное место, рыбалку, охоту,
-                        базу отдыха, аренду или недвижимость. После проверки объект
-                        сможет появиться на платформе.
+                        {isEditMode
+                            ? "Изменения сохранятся локально в этом браузере."
+                            : "Добавьте точку на карту: природное место, рыбалку, охоту, базу отдыха, аренду или недвижимость."}
                     </p>
                 </div>
 
@@ -254,7 +392,7 @@ export function SubmitPage() {
                                 rows="5"
                                 name="fullDescription"
                                 value={formData.fullDescription}
-                                placeholder="Расскажите подробнее: особенности, условия, расположение, важные детали"
+                                placeholder="Расскажите подробнее"
                                 onChange={handleFormChange}
                             />
                         </label>
@@ -303,6 +441,10 @@ export function SubmitPage() {
                                     <strong>
                                         {submitLocation.lat}, {submitLocation.lng}
                                     </strong>
+                                ) : editingPlace?.position ? (
+                                    <strong>
+                                        {editingPlace.position[0]}, {editingPlace.position[1]}
+                                    </strong>
                                 ) : (
                                     <strong>Точка пока не выбрана</strong>
                                 )}
@@ -311,19 +453,44 @@ export function SubmitPage() {
                             <Link
                                 className="submit-location-box__button"
                                 to="/submit/location"
+                                onClick={handleSaveDraftBeforeLocation}
                             >
-                                Указать на карте
+                                {submitLocation || editingPlace?.position
+                                    ? "Изменить точку"
+                                    : "Указать на карте"}
                             </Link>
                         </div>
 
                         <label className="submit-form__field">
                             <span>Фотографии</span>
-                            <input type="file" multiple accept="image/*" />
+
+                            <input
+                                type="file"
+                                multiple
+                                accept="image/*"
+                                onChange={handleImagesChange}
+                            />
                         </label>
 
+                        {gallery.length > 0 && (
+                            <div className="submit-gallery-preview">
+                                {gallery.map((image, index) => (
+                                    <div className="submit-gallery-preview__item" key={`${image}-${index}`}>
+                                        <img src={image} alt={`Фото ${index + 1}`} />
+
+                                        <button
+                                            type="button"
+                                            onClick={() => handleRemoveImage(index)}
+                                        >
+                                            Удалить
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
                         <p className="submit-form__note">
-                            В демо-режиме фотографии пока не сохраняются. После подключения
-                            backend загрузку фото обработаем через сервер.
+                            В демо-режиме фотографии сохраняются локально в браузере.
                         </p>
                     </section>
 
@@ -351,11 +518,6 @@ export function SubmitPage() {
                                 onChange={handleFormChange}
                             />
                         </label>
-
-                        <p className="submit-form__note">
-                            В будущем вопросы по объявлению будут приходить в личный кабинет.
-                            Телефон автора публично показывать не обязательно.
-                        </p>
                     </section>
 
                     {submitStatus && (
@@ -365,7 +527,7 @@ export function SubmitPage() {
                     )}
 
                     <button className="submit-form__submit" type="submit">
-                        Отправить на модерацию
+                        {isEditMode ? "Сохранить изменения" : "Отправить на модерацию"}
                     </button>
                 </form>
             </section>

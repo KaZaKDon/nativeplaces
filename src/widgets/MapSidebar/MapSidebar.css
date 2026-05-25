@@ -238,6 +238,31 @@
     font-size: 22px;
 }
 
+.map-sidebar__add-place {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    min-height: 38px;
+    padding: 0 14px;
+
+    border-radius: 999px;
+    border: 1px solid rgba(244, 213, 141, 0.34);
+
+    background: rgba(244, 213, 141, 0.16);
+    color: rgba(255, 248, 232, 0.96);
+
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 800;
+
+    white-space: nowrap;
+}
+
+.map-sidebar__add-place:hover {
+    background: rgba(244, 213, 141, 0.24);
+}
+
 @media (max-width: 860px) {
     .map-sidebar {
         min-height: 0;
@@ -267,5 +292,10 @@
 
     .map-sidebar__count {
         margin-top: 14px;
+    }
+
+    .map-sidebar__top {
+        gap: 10px;
+        flex-wrap: wrap;
     }
 }
