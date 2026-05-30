@@ -1,5 +1,8 @@
 import { useState } from "react";
 
+import { getFavoriteIds } from "../../../shared/storage/favoritesStorage";
+import { getLocalPlaces } from "../../../shared/storage/localPlacesStorage";
+import { getConversations } from "../../../shared/storage/messagesStorage";
 import { accountBookTabs } from "../model/accountBookTabs";
 import { AccountArchiveSection } from "./sections/AccountArchiveSection";
 import { AccountFavoritesSection } from "./sections/AccountFavoritesSection";
@@ -7,6 +10,7 @@ import { AccountMessagesSection } from "./sections/AccountMessagesSection";
 import { AccountPlacesSection } from "./sections/AccountPlacesSection";
 import { AccountRoutesSection } from "./sections/AccountRoutesSection";
 import { AccountSettingsSection } from "./sections/AccountSettingsSection";
+import { getAccountProfile } from "../../../shared/storage/accountProfileStorage";
 
 import "./AccountBook.css";
 
@@ -21,30 +25,43 @@ const sectionComponents = {
 
 export function AccountBook() {
     const [activeTab, setActiveTab] = useState("places");
+    const [profile, setProfile] = useState(() => getAccountProfile());
+
+    const stats = {
+        places: getLocalPlaces().length,
+        favorites: getFavoriteIds().length,
+        messages: getConversations().length,
+    };
 
     const ActiveSection = sectionComponents[activeTab] || AccountPlacesSection;
 
     return (
         <section className="account-book" aria-label="Личный кабинет">
             <div className="account-book__left">
-                <div className="account-book__avatar">РМ</div>
+                <div className="account-book__avatar">
+                    {profile.avatar ? (
+                        <img src={profile.avatar} alt={profile.name} />
+                    ) : (
+                        "РМ"
+                    )}
+                </div>
 
-                <h2>Исследователь</h2>
-                <p>Дневник родных мест</p>
+                <h2>{profile.name}</h2>
+                <p>{profile.status}</p>
 
                 <div className="account-book__stats">
                     <div>
-                        <strong>0</strong>
+                        <strong>{stats.places}</strong>
                         <span>мест</span>
                     </div>
 
                     <div>
-                        <strong>0</strong>
+                        <strong>{stats.favorites}</strong>
                         <span>избранных</span>
                     </div>
 
                     <div>
-                        <strong>0</strong>
+                        <strong>{stats.messages}</strong>
                         <span>писем</span>
                     </div>
                 </div>
@@ -55,7 +72,7 @@ export function AccountBook() {
             </div>
 
             <div className="account-book__right">
-                <ActiveSection />
+                <ActiveSection onProfileUpdate={setProfile} />
             </div>
 
             <nav className="account-book__tabs" aria-label="Разделы кабинета">

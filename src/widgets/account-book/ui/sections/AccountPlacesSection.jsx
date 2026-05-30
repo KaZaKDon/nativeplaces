@@ -5,6 +5,7 @@ import {
     deleteLocalPlace,
     getLocalPlaces,
 } from "../../../../shared/storage/localPlacesStorage";
+import { AccountBookPager } from "../components/AccountBookPager";
 import { AccountPlaceCard } from "../components/AccountPlaceCard";
 
 export function AccountPlacesSection() {
@@ -25,10 +26,12 @@ export function AccountPlacesSection() {
         <div className="account-book-section">
             <h1>Мои места</h1>
 
-            <p>
-                Объекты, которые вы добавили через форму. Пока они сохранены
-                локально в этом браузере.
-            </p>
+            {places.length === 0 && (
+                <p>
+                    Объекты, которые вы добавили через форму. Пока они сохранены
+                    локально в этом браузере.
+                </p>
+            )}
 
             <Link className="account-book-section__button" to="/submit">
                 Добавить место
@@ -37,21 +40,21 @@ export function AccountPlacesSection() {
             {places.length === 0 ? (
                 <div className="account-book-empty">
                     <h2>Пока нет добавленных мест</h2>
+
                     <p>
                         Добавьте объект, выберите координаты на карте,
                         и запись появится здесь.
                     </p>
                 </div>
             ) : (
-                <div className="account-book-list">
-                    {places.map((place) => (
+                <AccountBookPager items={places}>
+                    {(place) => (
                         <AccountPlaceCard
-                            key={place.id}
                             place={place}
                             onDelete={handleDeletePlace}
                         />
-                    ))}
-                </div>
+                    )}
+                </AccountBookPager>
             )}
         </div>
     );

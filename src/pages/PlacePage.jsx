@@ -6,6 +6,7 @@ import { createPlaceMapUrl } from "../entities/place/lib/createPlaceMapUrl";
 import { createPlaceRouteUrl } from "../entities/place/lib/createPlaceRouteUrl";
 import { getPlaceBySlug } from "../entities/place/lib/getPlaceBySlug";
 import { getPlaceImages } from "../entities/place/lib/getPlaceImages";
+import { saveMessage } from "../shared/storage/messagesStorage";
 import {
     isFavorite,
     toggleFavorite,
@@ -30,6 +31,8 @@ export function PlacePage() {
     const [activeImageIndex, setActiveImageIndex] = useState(0);
     const [viewerOpen, setViewerOpen] = useState(false);
     const [messageModalOpen, setMessageModalOpen] = useState(false);
+    const [messageText, setMessageText] = useState("");
+    const [messageStatus, setMessageStatus] = useState("");
     const [favorite, setFavorite] = useState(() => {
         return place ? isFavorite(place.id) : false;
     });
@@ -86,6 +89,35 @@ export function PlacePage() {
 
         toggleFavorite(place.id);
         setFavorite((current) => !current);
+    }
+
+    function handleSendMessage() {
+        if (!place) {
+            return;
+        }
+
+        const text = messageText.trim();
+
+        if (!text) {
+            setMessageStatus("Введите текст сообщения.");
+            return;
+        }
+
+        saveMessage({
+            placeId: place.id,
+            placeSlug: place.slug,
+            placeTitle: place.title,
+            placeImage: place.image,
+            placeCategoryTitle: place.categoryTitle,
+            text,
+        });
+
+        setMessageText("");
+        setMessageStatus("Сообщение сохранено в кабинете.");
+        setTimeout(() => {
+            setMessageModalOpen(false);
+            setMessageStatus("");
+        }, 1000);
     }
 
     if (!place) {
@@ -327,8 +359,18 @@ export function PlacePage() {
 
                                     <textarea
                                         rows="5"
+                                        value={messageText}
                                         placeholder="Здравствуйте! Подскажите, объявление актуально?"
+                                        onChange={(event) => {
+                                            setMessageText(event.target.value);
+                                            setMessageStatus("");
+                                        }}
                                     />
+                                    {messageStatus && (
+                                        <p className="message-modal__status">
+                                            {messageStatus}
+                                        </p>
+                                    )}
                                 </div>
 
                                 <div className="message-chat__avatar message-chat__avatar--user">
@@ -337,7 +379,11 @@ export function PlacePage() {
                             </div>
                         </div>
 
-                        <button className="place-page__button message-modal__submit" type="button">
+                        <button
+                            className="place-page__button message-modal__submit"
+                            type="button"
+                            onClick={handleSendMessage}
+                        >
                             Отправить
                         </button>
                     </div>

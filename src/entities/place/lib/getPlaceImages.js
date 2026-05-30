@@ -3,5 +3,9 @@ export function getPlaceImages(place) {
         return [];
     }
 
-    return [place.image, ...(place.gallery ?? [])].filter(Boolean);
+    const gallery = Array.isArray(place.gallery)
+        ? place.gallery.filter((image) => image !== place.image)
+        : [];
+
+    return [place.image, ...gallery].filter(Boolean);
 }

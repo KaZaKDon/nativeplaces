@@ -41,16 +41,22 @@
 }
 
 .hero__brand {
-    width: 54px;
-    height: 54px;
-    display: grid;
-    place-items: center;
-    border: 1px solid var(--border-soft);
-    border-radius: 18px;
-    background: rgba(8, 12, 20, 0.24);
-    color: var(--color-gold-light);
-    -webkit-backdrop-filter: blur(14px);
-    backdrop-filter: blur(14px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background: transparent;
+    border: none;
+    box-shadow: none;
+}
+
+.hero__brand-logo {
+    width: 100px;
+    height: 100px;
+
+    display: block;
+
+    object-fit: contain;
 }
 
 .hero__brand-mark {

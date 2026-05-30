@@ -16,7 +16,10 @@ import {
     getSubmitDraft,
     saveSubmitDraft,
 } from "../shared/storage/submitDraftStorage";
-import { getSubmitLocation } from "../shared/storage/submitLocationStorage";
+import {
+    clearSubmitLocation,
+    getSubmitLocation,
+} from "../shared/storage/submitLocationStorage";
 
 import "./SubmitPage.css";
 
@@ -265,7 +268,7 @@ export function SubmitPage() {
 
         saveLocalPlace(newPlace);
         clearSubmitDraft();
-
+        clearSubmitLocation();
         navigate(`/map?category=${selectedCategory}&place=${newPlace.id}`);
     }
 

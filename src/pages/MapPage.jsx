@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 
 import { places } from "../data/map/places";
-import { MAP_SHEET_STATES } from "../features/map-state/mapStateConstants";
 import { useMapState } from "../features/map-state/useMapState";
 import { MapBottomSheet } from "../features/map-bottom-sheet/MapBottomSheet";
 import { filterPlaces } from "../shared/map/filterPlaces";
@@ -67,7 +66,6 @@ export function MapPage() {
                 onClearSelected={mapState.clearSelectedPlace}
                 onSearchChange={handleSearchChange}
                 onHoverPlace={handleHoverPlace}
-                onExpandSheet={() => mapState.setSheetState(MAP_SHEET_STATES.FULL)}
             />
         );
     }

@@ -10,7 +10,11 @@ export function HomePage() {
 
                 <header className="hero__header">
                     <Link className="hero__brand" to="/" aria-label="Родные места">
-                        <span className="hero__brand-mark">⌖</span>
+                        <img
+                            className="hero__brand-logo"
+                            src="/images/logo/logo.png"
+                            alt="Родные места"
+                        />
                     </Link>
 
                     <nav className="hero__nav">

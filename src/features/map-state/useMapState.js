@@ -13,7 +13,6 @@ import {
 export function useMapState() {
     const [searchParams, setSearchParams] = useSearchParams();
     const [hoveredPlaceId, setHoveredPlaceId] = useState(null);
-    const [sidebarOpen, setSidebarOpen] = useState(true);
     const [sheetState, setSheetState] = useState(MAP_SHEET_STATES.COLLAPSED);
 
     const category = getValidCategoryFromParams(searchParams);
@@ -59,14 +58,12 @@ export function useMapState() {
         selectedPlaceId,
         search,
         hoveredPlaceId,
-        sidebarOpen,
         sheetState,
         setCategory,
         setSelectedPlaceId,
         clearSelectedPlace,
         setSearch,
         setHoveredPlaceId,
-        setSidebarOpen,
         setSheetState,
     };
 }

@@ -1,0 +1,147 @@
+.account-settings-form {
+    display: grid;
+    gap: 10px;
+
+    margin-top: 18px;
+}
+
+.account-settings-form label {
+    display: grid;
+    gap: 6px;
+}
+
+.account-settings-form span {
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.account-settings-form input {
+    width: 100%;
+
+    padding: 10px 12px;
+
+    border: 1px solid rgba(96, 65, 34, 0.16);
+    border-radius: 14px;
+
+    background: rgba(255, 248, 232, 0.28);
+    color: #3c2b1c;
+
+    font: inherit;
+}
+
+.account-settings-contact {
+    margin-top: 14px;
+}
+
+.account-contact-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+
+    display: grid;
+    place-items: center;
+
+    padding: 20px;
+
+    background: rgba(28, 20, 13, 0.48);
+}
+
+.account-contact-modal__card {
+    position: relative;
+
+    width: min(520px, 100%);
+
+    padding: 22px;
+
+    border-radius: 24px;
+
+    background: #f2e3c8;
+    color: #3c2b1c;
+}
+
+.account-contact-modal__close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+
+    width: 34px;
+    height: 34px;
+
+    border: none;
+    border-radius: 50%;
+
+    background: rgba(96, 65, 34, 0.14);
+    color: #3c2b1c;
+
+    font-size: 24px;
+    cursor: pointer;
+}
+
+.account-contact-modal h2 {
+    margin: 0 0 18px;
+
+    font-size: 28px;
+    text-transform: uppercase;
+}
+
+.account-contact-modal__tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+
+    margin-bottom: 14px;
+}
+
+.account-contact-modal__tabs button {
+    padding: 8px 12px;
+
+    border: 1px solid rgba(96, 65, 34, 0.14);
+    border-radius: 999px;
+
+    background: rgba(96, 65, 34, 0.1);
+    color: #3c2b1c;
+
+    font: inherit;
+    font-size: 12px;
+    font-weight: 900;
+
+    cursor: pointer;
+}
+
+.account-contact-modal__tabs button.is-active {
+    background: rgba(96, 65, 34, 0.22);
+}
+
+.account-contact-form {
+    display: grid;
+    gap: 10px;
+}
+
+.account-contact-form textarea {
+    width: 100%;
+
+    padding: 12px;
+
+    border: 1px solid rgba(96, 65, 34, 0.16);
+    border-radius: 16px;
+
+    background: rgba(255, 248, 232, 0.36);
+    color: #3c2b1c;
+
+    font: inherit;
+
+    resize: vertical;
+}
+
+.account-support-item__badge {
+    display: inline-flex;
+    margin-left: 8px;
+    padding: 4px 8px;
+
+    border-radius: 999px;
+
+    background: rgba(88, 125, 76, 0.18);
+
+    font-size: 11px;
+    font-weight: 900;
+}

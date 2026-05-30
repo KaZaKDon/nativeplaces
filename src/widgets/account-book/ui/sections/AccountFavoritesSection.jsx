@@ -6,7 +6,8 @@ import {
     getFavoriteIds,
     removeFavorite,
 } from "../../../../shared/storage/favoritesStorage";
-import { AccountPlaceCard } from "../components/AccountPlaceCard";
+import { AccountBookPager } from "../components/AccountBookPager";
+import { AccountFavoriteCard } from "../components/AccountFavoriteCard";
 
 export function AccountFavoritesSection() {
     const [favoriteIds, setFavoriteIds] = useState(() => getFavoriteIds());
@@ -26,10 +27,6 @@ export function AccountFavoritesSection() {
         <div className="account-book-section">
             <h1>Избранное</h1>
 
-            <p>
-                Сохранённые места, к которым можно быстро вернуться позже.
-            </p>
-
             {favoritePlaces.length === 0 ? (
                 <div className="account-book-empty">
                     <h2>Пока нет избранных мест</h2>
@@ -39,16 +36,14 @@ export function AccountFavoritesSection() {
                     </p>
                 </div>
             ) : (
-                <div className="account-book-list">
-                    {favoritePlaces.map((place) => (
-                        <AccountPlaceCard
-                            key={place.id}
+                <AccountBookPager items={favoritePlaces}>
+                    {(place) => (
+                        <AccountFavoriteCard
                             place={place}
-                            onDelete={handleRemoveFavorite}
-                            deleteLabel="Убрать"
+                            onRemove={handleRemoveFavorite}
                         />
-                    ))}
-                </div>
+                    )}
+                </AccountBookPager>
             )}
         </div>
     );
