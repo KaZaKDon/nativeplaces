@@ -1,26 +1,84 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import { places } from "../../../../data/map/places";
-import { getLocalPlaces } from "../../../../shared/storage/localPlacesStorage";
-import {
-    getFavoriteIds,
-    removeFavorite,
-} from "../../../../shared/storage/favoritesStorage";
+import { favoritesApi } from "../../../../shared/api/favoritesApi";
 import { AccountBookPager } from "../components/AccountBookPager";
 import { AccountFavoriteCard } from "../components/AccountFavoriteCard";
 
 export function AccountFavoritesSection() {
-    const [favoriteIds, setFavoriteIds] = useState(() => getFavoriteIds());
+    const [favoritePlaces, setFavoritePlaces] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
 
-    const allPlaces = [...places, ...getLocalPlaces()];
+    useEffect(() => {
+        let isMounted = true;
 
-    const favoritePlaces = allPlaces.filter((place) => {
-        return favoriteIds.includes(String(place.id));
-    });
+        async function loadFavorites() {
+            try {
+                const data = await favoritesApi.getFavorites();
 
-    function handleRemoveFavorite(placeId) {
-        const updatedFavorites = removeFavorite(placeId);
-        setFavoriteIds(updatedFavorites);
+                if (!isMounted) {
+                    return;
+                }
+
+                setFavoritePlaces(data.favorites);
+                setError("");
+            } catch (error) {
+                console.error("Не удалось загрузить избранное:", error);
+
+                if (isMounted) {
+                    setFavoritePlaces([]);
+                    setError(
+                        error.message || "Не удалось загрузить избранное."
+                    );
+                }
+            } finally {
+                if (isMounted) {
+                    setLoading(false);
+                }
+            }
+        }
+
+        loadFavorites();
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
+
+    async function handleRemoveFavorite(placeId) {
+        try {
+            await favoritesApi.toggleFavorite(placeId);
+
+            setFavoritePlaces((currentPlaces) =>
+                currentPlaces.filter(
+                    (place) => String(place.id) !== String(placeId)
+                )
+            );
+        } catch (error) {
+            console.error(error);
+
+            window.alert(
+                error.message || "Не удалось удалить объект из избранного."
+            );
+        }
+    }
+
+    if (loading) {
+        return (
+            <div className="account-book-section">
+                <h1>Избранное</h1>
+                <p>Загружаем избранные объекты...</p>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="account-book-section">
+                <h1>Избранное</h1>
+                <p>{error}</p>
+            </div>
+        );
     }
 
     return (
@@ -32,7 +90,7 @@ export function AccountFavoritesSection() {
                     <h2>Пока нет избранных мест</h2>
 
                     <p>
-                        Откройте карточку объекта и нажмите “В избранное”.
+                        Откройте карточку объекта и нажмите «В избранное».
                     </p>
                 </div>
             ) : (

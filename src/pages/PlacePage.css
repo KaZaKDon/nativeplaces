@@ -617,6 +617,17 @@ img {
     border-color: rgba(244, 213, 141, 0.4);
 }
 
+.place-page__route-add {
+    margin-top: 18px;
+}
+
+.place-page__button--add-route {
+    width: 100%;
+    min-height: 56px;
+
+    font-size: 17px;
+}
+
 @media (max-width: 900px) {
     .place-hero {
         min-height: 0;

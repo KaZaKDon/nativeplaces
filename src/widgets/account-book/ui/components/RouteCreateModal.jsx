@@ -1,80 +1,39 @@
-import { useMemo, useState } from "react";
-
-import { places } from "../../../../data/map/places";
-import { getLocalPlaces } from "../../../../shared/storage/localPlacesStorage";
+import { useState } from "react";
 
 import "./RouteCreateModal.css";
 
 const initialForm = {
     title: "",
     description: "",
+    isPublic: false,
 };
 
 export function RouteCreateModal({ onClose, onCreate }) {
     const [form, setForm] = useState(initialForm);
-    const [selectedPlaceId, setSelectedPlaceId] = useState("");
-    const [routePlaces, setRoutePlaces] = useState([]);
-
-    const allPlaces = useMemo(() => {
-        return [...places, ...getLocalPlaces()];
-    }, []);
-
-    const availablePlaces = allPlaces.filter((place) => {
-        return !routePlaces.some((routePlace) => String(routePlace.id) === String(place.id));
-    });
 
     function handleFormChange(event) {
-        const { name, value } = event.target;
+        const { name, value, type, checked } = event.target;
 
         setForm((currentForm) => ({
             ...currentForm,
-            [name]: value,
+            [name]: type === "checkbox" ? checked : value,
         }));
-    }
-
-    function handleAddPlace() {
-        const place = allPlaces.find((item) => String(item.id) === String(selectedPlaceId));
-
-        if (!place) {
-            return;
-        }
-
-        setRoutePlaces((currentPlaces) => [
-            ...currentPlaces,
-            {
-                id: place.id,
-                title: place.title,
-                slug: place.slug,
-                position: place.position,
-                categoryTitle: place.categoryTitle,
-            },
-        ]);
-
-        setSelectedPlaceId("");
-    }
-
-    function handleRemovePlace(placeId) {
-        setRoutePlaces((currentPlaces) => {
-            return currentPlaces.filter((place) => String(place.id) !== String(placeId));
-        });
     }
 
     function handleSubmit(event) {
         event.preventDefault();
 
-        if (!form.title.trim() || routePlaces.length === 0) {
+        if (!form.title.trim()) {
             return;
         }
 
         onCreate({
             title: form.title.trim(),
             description: form.description.trim(),
-            places: routePlaces,
+            isPublic: form.isPublic,
         });
 
         setForm(initialForm);
-        setSelectedPlaceId("");
-        setRoutePlaces([]);
     }
 
     return (
@@ -98,52 +57,10 @@ export function RouteCreateModal({ onClose, onCreate }) {
                             type="text"
                             name="title"
                             value={form.title}
-                            placeholder="Например, Рыбалка у Дона"
+                            placeholder="Например, Дома в Вёшенской на просмотр"
                             onChange={handleFormChange}
                         />
                     </label>
-
-                    <label>
-                        <span>Выберите место</span>
-                        <select
-                            value={selectedPlaceId}
-                            onChange={(event) => setSelectedPlaceId(event.target.value)}
-                        >
-                            <option value="">Выберите первое место</option>
-
-                            {availablePlaces.map((place) => (
-                                <option key={place.id} value={place.id}>
-                                    {place.title}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
-
-                    <button
-                        className="route-create-form__add"
-                        type="button"
-                        onClick={handleAddPlace}
-                        disabled={!selectedPlaceId}
-                    >
-                        + Добавить место
-                    </button>
-
-                    {routePlaces.length > 0 && (
-                        <div className="route-create-form__places">
-                            {routePlaces.map((place, index) => (
-                                <div className="route-create-form__place" key={place.id}>
-                                    <span>{index + 1}. {place.title}</span>
-
-                                    <button
-                                        type="button"
-                                        onClick={() => handleRemovePlace(place.id)}
-                                    >
-                                        Убрать
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
 
                     <label>
                         <span>Описание</span>
@@ -156,10 +73,24 @@ export function RouteCreateModal({ onClose, onCreate }) {
                         />
                     </label>
 
+                    <label>
+                        <span>Доступ</span>
+
+                        <label>
+                            <input
+                                type="checkbox"
+                                name="isPublic"
+                                checked={form.isPublic}
+                                onChange={handleFormChange}
+                            />
+                            Публичный маршрут
+                        </label>
+                    </label>
+
                     <button
                         className="route-create-form__submit"
                         type="submit"
-                        disabled={!form.title.trim() || routePlaces.length === 0}
+                        disabled={!form.title.trim()}
                     >
                         Создать маршрут
                     </button>

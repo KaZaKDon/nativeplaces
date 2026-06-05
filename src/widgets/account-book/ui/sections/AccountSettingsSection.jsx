@@ -1,34 +1,34 @@
 import { useState } from "react";
 
-import {
-    getAccountProfile,
-    saveAccountProfile,
-} from "../../../../shared/storage/accountProfileStorage";
+import { profileApi } from "../../../../shared/api/profileApi";
+import { useAuth } from "../../../../shared/auth/useAuth";
 import {
     deleteSupportRequest,
     getSupportRequests,
     saveSupportRequest,
     supportTypeTitles,
 } from "../../../../shared/storage/supportStorage";
+import { getMediaUrl } from "../../../../shared/api/mediaUrl";
 
 import "./AccountSettingsSection.css";
 
-function readFileAsDataUrl(file) {
-    return new Promise((resolve) => {
-        const reader = new FileReader();
-
-        reader.onload = () => {
-            resolve(String(reader.result));
-        };
-
-        reader.readAsDataURL(file);
-    });
+function mapUserToProfile(user) {
+    return {
+        name: user?.first_name || "Исследователь",
+        status: user?.profile_status || "Дневник родных мест",
+        avatar: getMediaUrl(user?.avatar),
+        phone: user?.phone || "",
+        telegram: user?.telegram || "",
+    };
 }
 
 export function AccountSettingsSection({ onProfileUpdate }) {
+    const { user, updateUser } = useAuth();
+
     const [view, setView] = useState("settings");
 
-    const [profile, setProfile] = useState(() => getAccountProfile());
+    const [profile, setProfile] = useState(() => mapUserToProfile(user));
+    const [profileStatus, setProfileStatus] = useState("");
 
     const [contactOpen, setContactOpen] = useState(false);
     const [contactType, setContactType] = useState("support");
@@ -46,34 +46,92 @@ export function AccountSettingsSection({ onProfileUpdate }) {
             ...currentProfile,
             [name]: value,
         }));
+
+        setProfileStatus("");
     }
 
     async function handleAvatarChange(event) {
         const file = event.target.files?.[0];
 
+        console.log("AVATAR_STEP_1 file:", file);
+
         if (!file) {
+            setProfileStatus("Файл не выбран.");
             return;
         }
 
-        const avatar = await readFileAsDataUrl(file);
+        const maxAvatarSize = 3 * 1024 * 1024;
 
-        setProfile((currentProfile) => ({
-            ...currentProfile,
-            avatar,
-        }));
+        if (file.size > maxAvatarSize) {
+            setProfileStatus("Фото слишком большое. Максимальный размер — 3 МБ.");
+            event.target.value = "";
+            return;
+        }
+
+        setProfileStatus("Загружаем фото...");
+
+        try {
+            console.log("AVATAR_STEP_2 before upload");
+
+            const data = await profileApi.uploadAvatar(file);
+
+            console.log("AVATAR_STEP_3 response:", data);
+
+            const updatedProfile = {
+                ...profile,
+                avatar: getMediaUrl(data.avatar),
+            };
+
+            setProfile(updatedProfile);
+            updateUser({
+                avatar: data.avatar,
+            });
+            onProfileUpdate?.(updatedProfile);
+
+            setProfileStatus("Фото профиля обновлено.");
+        } catch (error) {
+            console.error("AVATAR_UPLOAD_ERROR:", error);
+            setProfileStatus(error.message || "Не удалось обновить фото.");
+        }
     }
 
-    function handleSaveProfile(event) {
+    async function handleSaveProfile(event) {
         event.preventDefault();
 
-        const updatedProfile = saveAccountProfile({
-            name: profile.name.trim() || "Исследователь",
-            status: profile.status.trim() || "Дневник родных мест",
-            avatar: profile.avatar,
-        });
+        setProfileStatus("");
 
-        setProfile(updatedProfile);
-        onProfileUpdate?.(updatedProfile);
+        const nextName = profile.name.trim() || "Исследователь";
+        const nextStatus = profile.status.trim();
+
+        try {
+            const data = await profileApi.updateProfile({
+                firstName: nextName,
+                profileStatus: nextStatus,
+                phone: profile.phone,
+                telegram: profile.telegram,
+            });
+
+            const updatedProfile = {
+                name: data.profile.first_name || "Исследователь",
+                status: data.profile.profile_status || "Дневник родных мест",
+                avatar: profile.avatar,
+                phone: data.profile.phone || "",
+                telegram: data.profile.telegram || "",
+            };
+
+            setProfile(updatedProfile);
+            updateUser({
+                first_name: data.profile.first_name,
+                profile_status: data.profile.profile_status,
+                phone: data.profile.phone,
+                telegram: data.profile.telegram,
+            });
+            onProfileUpdate?.(updatedProfile);
+
+            setProfileStatus("Профиль сохранён.");
+        } catch (error) {
+            setProfileStatus(error.message || "Не удалось сохранить профиль.");
+        }
     }
 
     function handleSendContact(event) {
@@ -229,6 +287,8 @@ export function AccountSettingsSection({ onProfileUpdate }) {
                         onChange={handleAvatarChange}
                     />
                 </label>
+
+                {profileStatus && <p>{profileStatus}</p>}
 
                 <button className="account-book-section__button" type="submit">
                     Сохранить профиль

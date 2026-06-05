@@ -1,11 +1,10 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import { places } from "../data/map/places";
+import { placesApi } from "../shared/api/placesApi";
 import { useMapState } from "../features/map-state/useMapState";
 import { MapBottomSheet } from "../features/map-bottom-sheet/MapBottomSheet";
 import { filterPlaces } from "../shared/map/filterPlaces";
 import { useDebouncedValue } from "../shared/search/useDebouncedValue";
-import { getLocalPlaces } from "../shared/storage/localPlacesStorage";
 import { MapView } from "../widgets/MapView/MapView";
 import { MapSidebar } from "../widgets/MapSidebar/MapSidebar";
 
@@ -15,8 +14,44 @@ export function MapPage() {
     const mapState = useMapState();
     const debouncedSearch = useDebouncedValue(mapState.search, 250);
 
-    const allPlaces = useMemo(() => {
-        return [...places, ...getLocalPlaces()];
+    const [allPlaces, setAllPlaces] = useState([]);
+    const [placesLoading, setPlacesLoading] = useState(true);
+    const [placesError, setPlacesError] = useState("");
+
+    useEffect(() => {
+        let isMounted = true;
+
+        async function loadMapPlaces() {
+            try {
+                const data = await placesApi.getMapPlaces();
+
+                if (!isMounted) {
+                    return;
+                }
+
+                setAllPlaces(data.places);
+                setPlacesError("");
+            } catch (error) {
+                console.error("Не удалось загрузить объекты карты:", error);
+
+                if (isMounted) {
+                    setAllPlaces([]);
+                    setPlacesError(
+                        error.message || "Не удалось загрузить объекты карты."
+                    );
+                }
+            } finally {
+                if (isMounted) {
+                    setPlacesLoading(false);
+                }
+            }
+        }
+
+        loadMapPlaces();
+
+        return () => {
+            isMounted = false;
+        };
     }, []);
 
     const filteredPlaces = useMemo(() => {
@@ -83,13 +118,19 @@ export function MapPage() {
                     />
                 </div>
 
-                <div className="map-sidebar-desktop">{renderSidebar()}</div>
+                <div className="map-sidebar-desktop">
+                    {placesLoading && <p>Загружаем объекты...</p>}
+                    {placesError && <p>{placesError}</p>}
+                    {!placesLoading && !placesError && renderSidebar()}
+                </div>
 
                 <MapBottomSheet
                     state={mapState.sheetState}
                     onStateChange={mapState.setSheetState}
                 >
-                    {renderSidebar(true)}
+                    {placesLoading && <p>Загружаем объекты...</p>}
+                    {placesError && <p>{placesError}</p>}
+                    {!placesLoading && !placesError && renderSidebar(true)}
                 </MapBottomSheet>
             </section>
         </main>

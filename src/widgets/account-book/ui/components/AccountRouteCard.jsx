@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 import "./AccountRouteCard.css";
 
 function formatRouteDate(value) {
@@ -31,7 +33,7 @@ export function AccountRouteCard({
         <article className="account-route-card">
             <div className="account-route-card__head">
                 <span>{formatRouteDate(route.createdAt)}</span>
-                <strong>{route.places?.length ?? 0} мест</strong>
+                <strong>{route.placesCount ?? route.places?.length ?? 0} мест</strong>
             </div>
 
             <h2>{route.title || "Без названия"}</h2>
@@ -51,6 +53,13 @@ export function AccountRouteCard({
             )}
 
             <div className="account-route-card__actions">
+                <Link
+                    className="account-book-place__action"
+                    to={`/routes/${route.id}`}
+                >
+                    Открыть
+                </Link>
+
                 {yandexRouteUrl && (
                     <a
                         className="account-book-place__action"

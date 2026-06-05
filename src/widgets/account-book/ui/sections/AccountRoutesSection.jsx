@@ -1,10 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import {
-    archiveRoute,
-    getActiveRoutes,
-    saveRoute,
-} from "../../../../shared/storage/routesStorage";
+import { routesApi } from "../../../../shared/api/routesApi";
 import { AccountBookPager } from "../components/AccountBookPager";
 import { AccountRouteCard } from "../components/AccountRouteCard";
 import { RouteCreateModal } from "../components/RouteCreateModal";
@@ -12,24 +8,110 @@ import { RouteCreateModal } from "../components/RouteCreateModal";
 import "./AccountRoutesSection.css";
 
 export function AccountRoutesSection() {
-    const [routes, setRoutes] = useState(() => getActiveRoutes());
+    const [routes, setRoutes] = useState([]);
+    const [error, setError] = useState("");
     const [modalOpen, setModalOpen] = useState(false);
 
-    function handleCreateRoute(route) {
-        saveRoute(route);
-        setRoutes(getActiveRoutes());
-        setModalOpen(false);
+    useEffect(() => {
+        let isMounted = true;
+
+        async function fetchRoutes() {
+            try {
+                const data = await routesApi.getRoutes();
+
+                if (!isMounted) {
+                    return;
+                }
+
+                setRoutes(data.routes);
+                setError("");
+            } catch (error) {
+                console.error(error);
+
+                if (isMounted) {
+                    setError(
+                        error.message || "Не удалось загрузить маршруты."
+                    );
+                }
+            }
+        }
+
+        fetchRoutes();
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
+
+    async function handleCreateRoute(route) {
+        try {
+            const data = await routesApi.createRoute(route);
+
+            setRoutes((currentRoutes) => [
+                data.route,
+                ...currentRoutes,
+            ]);
+
+            setModalOpen(false);
+        } catch (error) {
+            console.error(error);
+
+            window.alert(
+                error.message || "Не удалось создать маршрут."
+            );
+        }
     }
 
-    function handleArchiveRoute(routeId) {
-        const isConfirmed = window.confirm("Перенести маршрут в архив?");
+    async function handleArchiveRoute(routeId) {
+        const isConfirmed = window.confirm(
+            "Удалить маршрут?"
+        );
 
         if (!isConfirmed) {
             return;
         }
 
-        archiveRoute(routeId);
-        setRoutes(getActiveRoutes());
+        try {
+            await routesApi.deleteRoute(routeId);
+
+            setRoutes((currentRoutes) =>
+                currentRoutes.filter(
+                    (route) =>
+                        String(route.id) !== String(routeId)
+                )
+            );
+        } catch (error) {
+            console.error(error);
+
+            window.alert(
+                error.message || "Не удалось удалить маршрут."
+            );
+        }
+    }
+
+    if (error) {
+        return (
+            <div className="account-book-section">
+                <h1>Маршруты</h1>
+
+                <p>{error}</p>
+
+                <button
+                    className="account-book-section__button account-routes__create"
+                    type="button"
+                    onClick={() => setModalOpen(true)}
+                >
+                    Создать маршрут
+                </button>
+
+                {modalOpen && (
+                    <RouteCreateModal
+                        onClose={() => setModalOpen(false)}
+                        onCreate={handleCreateRoute}
+                    />
+                )}
+            </div>
+        );
     }
 
     return (
@@ -49,8 +131,7 @@ export function AccountRoutesSection() {
                     <h2>Создайте первый маршрут</h2>
 
                     <p>
-                        Соберите поездку, рыбалку, охоту или путешествие
-                        по родным местам.
+                        Соберите список объектов и постройте маршрут между ними.
                     </p>
                 </div>
             ) : (

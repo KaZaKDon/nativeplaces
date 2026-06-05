@@ -1,8 +1,20 @@
 import { Link } from "react-router-dom";
 
+import { useAuth } from "../shared/auth/useAuth";
+
 import "./HomePage.css";
 
 export function HomePage() {
+    const { isAuth, authLoading } = useAuth();
+
+    const accountButtonText = authLoading
+        ? "Проверяем вход..."
+        : isAuth
+            ? "Кабинет"
+            : "Войти / регистрация";
+
+    const accountButtonLink = isAuth ? "/account" : "/auth";
+
     return (
         <main className="home-page">
             <section className="hero">
@@ -18,13 +30,15 @@ export function HomePage() {
                     </Link>
 
                     <nav className="hero__nav">
-                        <Link className="hero__login hero__login--hidden" to="/login">
-                            Войти
-                        </Link>
-
-                        <Link className="hero__login" to="/account">
-                            Кабинет
-                        </Link>
+                        {authLoading ? (
+                            <span className="hero__login hero__login--disabled">
+                                {accountButtonText}
+                            </span>
+                        ) : (
+                            <Link className="hero__login" to={accountButtonLink}>
+                                {accountButtonText}
+                            </Link>
+                        )}
                     </nav>
                 </header>
 

@@ -1,41 +1,87 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
-import { places } from "../data/map/places";
+import { placesApi } from "../shared/api/placesApi";
 import { createPlaceMapUrl } from "../entities/place/lib/createPlaceMapUrl";
 import { createPlaceRouteUrl } from "../entities/place/lib/createPlaceRouteUrl";
-import { getPlaceBySlug } from "../entities/place/lib/getPlaceBySlug";
 import { getPlaceImages } from "../entities/place/lib/getPlaceImages";
 import { saveMessage } from "../shared/storage/messagesStorage";
-import {
-    isFavorite,
-    toggleFavorite,
-} from "../shared/storage/favoritesStorage";
-import { getLocalPlaces } from "../shared/storage/localPlacesStorage";
+import { favoritesApi } from "../shared/api/favoritesApi";
+import { AddToRouteModal } from "../features/routes/AddToRouteModal";
 
 import "./PlacePage.css";
 
 export function PlacePage() {
     const { slug } = useParams();
 
-    const allPlaces = useMemo(() => {
-        return [...places, ...getLocalPlaces()];
-    }, []);
-
-    const place = getPlaceBySlug(allPlaces, slug);
-
-    const images = useMemo(() => {
-        return place ? getPlaceImages(place) : [];
-    }, [place]);
+    const [place, setPlace] = useState(null);
+    const [placeLoading, setPlaceLoading] = useState(true);
+    const [placeError, setPlaceError] = useState("");
 
     const [activeImageIndex, setActiveImageIndex] = useState(0);
     const [viewerOpen, setViewerOpen] = useState(false);
     const [messageModalOpen, setMessageModalOpen] = useState(false);
     const [messageText, setMessageText] = useState("");
     const [messageStatus, setMessageStatus] = useState("");
-    const [favorite, setFavorite] = useState(() => {
-        return place ? isFavorite(place.id) : false;
-    });
+    const [favorite, setFavorite] = useState(false);
+    const [routeModalOpen, setRouteModalOpen] = useState(false);
+
+    const images = place ? getPlaceImages(place) : [];
+
+    useEffect(() => {
+        let isMounted = true;
+
+        async function loadPlace() {
+            try {
+                const data = await placesApi.getPlaceBySlug(slug);
+
+                if (!isMounted) {
+                    return;
+                }
+
+                if (!data.place) {
+                    setPlace(null);
+                    setPlaceError("Объект не найден.");
+                    return;
+                }
+
+                setPlace(data.place);
+                try {
+                    const favoriteData = await favoritesApi.checkFavorite(
+                        data.place.id
+                    );
+
+                    setFavorite(Boolean(favoriteData.is_favorite));
+                } catch (error) {
+                    console.error(
+                        "Не удалось проверить избранное:",
+                        error
+                    );
+
+                    setFavorite(false);
+                }
+                setPlaceError("");
+                setActiveImageIndex(0);
+            } catch (error) {
+                console.error("Не удалось загрузить объект:", error);
+
+                if (isMounted) {
+                    setPlace(null);
+                    setPlaceError(error.message || "Не удалось загрузить объект.");
+                }
+            } finally {
+                if (isMounted) {
+                    setPlaceLoading(false);
+                }
+            }
+        }
+
+        loadPlace();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [slug]);
 
     const showPreviousImage = useCallback(() => {
         setActiveImageIndex((currentIndex) => {
@@ -82,13 +128,25 @@ export function PlacePage() {
         setViewerOpen(true);
     }
 
-    function handleToggleFavorite() {
+    async function handleToggleFavorite() {
         if (!place) {
             return;
         }
 
-        toggleFavorite(place.id);
-        setFavorite((current) => !current);
+        try {
+            const result = await favoritesApi.toggleFavorite(
+                place.id
+            );
+
+            setFavorite(Boolean(result.is_favorite));
+        } catch (error) {
+            console.error(error);
+
+            window.alert(
+                error.message ||
+                "Не удалось изменить избранное."
+            );
+        }
     }
 
     function handleSendMessage() {
@@ -120,13 +178,25 @@ export function PlacePage() {
         }, 1000);
     }
 
+    if (placeLoading) {
+        return (
+            <main className="place-page place-page--not-found">
+                <section className="place-page__not-found">
+                    <p className="place-page__eyebrow">Загрузка</p>
+                    <h1>Загружаем объект</h1>
+                    <p>Получаем данные из базы.</p>
+                </section>
+            </main>
+        );
+    }
+
     if (!place) {
         return (
             <main className="place-page place-page--not-found">
                 <section className="place-page__not-found">
                     <p className="place-page__eyebrow">Место не найдено</p>
                     <h1>Такого объекта пока нет</h1>
-                    <p>Возможно, ссылка устарела или объект еще не добавлен в базу.</p>
+                    <p>{placeError || "Возможно, ссылка устарела или объект еще не добавлен в базу."}</p>
 
                     <Link className="place-page__button" to="/map">
                         Вернуться к карте
@@ -136,12 +206,16 @@ export function PlacePage() {
         );
     }
 
-    const tags = [
-        place.locality,
-        place.area,
-        place.landArea,
-        ...(place.tags ?? []),
-    ].filter(Boolean);
+    const tags = Array.from(
+        new Set(
+            [
+                place.locality,
+                place.area,
+                place.landArea,
+                ...(place.tags ?? []),
+            ].filter(Boolean)
+        )
+    );
 
     const routeUrl = createPlaceRouteUrl(place);
 
@@ -279,6 +353,15 @@ export function PlacePage() {
                             Все категории
                         </Link>
                     </div>
+                    <div className="place-page__route-add">
+                        <button
+                            className="place-page__button place-page__button--add-route"
+                            type="button"
+                            onClick={() => setRouteModalOpen(true)}
+                        >
+                            Добавить в маршрут
+                        </button>
+                    </div>
                 </div>
             </section>
 
@@ -388,6 +471,12 @@ export function PlacePage() {
                         </button>
                     </div>
                 </div>
+            )}
+            {routeModalOpen && (
+                <AddToRouteModal
+                    place={place}
+                    onClose={() => setRouteModalOpen(false)}
+                />
             )}
         </main>
     );

@@ -1,35 +1,83 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
-import {
-    deleteLocalPlace,
-    getLocalPlaces,
-} from "../../../../shared/storage/localPlacesStorage";
+import { myPlacesApi } from "../../../../shared/api/myPlacesApi";
 import { AccountBookPager } from "../components/AccountBookPager";
 import { AccountPlaceCard } from "../components/AccountPlaceCard";
 
 export function AccountPlacesSection() {
-    const [places, setPlaces] = useState(() => getLocalPlaces());
+    const [places, setPlaces] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-    function handleDeletePlace(placeId) {
-        const isConfirmed = window.confirm("Удалить это место из дневника?");
+    useEffect(() => {
+        let isMounted = true;
+
+        async function loadPlaces() {
+            try {
+                const data = await myPlacesApi.getMyPlaces();
+
+                if (!isMounted) {
+                    return;
+                }
+
+                setPlaces(data.places);
+            } catch (error) {
+                console.error("Не удалось загрузить мои места:", error);
+
+                if (isMounted) {
+                    setPlaces([]);
+                }
+            } finally {
+                if (isMounted) {
+                    setLoading(false);
+                }
+            }
+        }
+
+        loadPlaces();
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
+
+    async function handleDeletePlace(placeId) {
+        const isConfirmed = window.confirm(
+            "Переместить объект в архив?"
+        );
 
         if (!isConfirmed) {
             return;
         }
 
-        const updatedPlaces = deleteLocalPlace(placeId);
-        setPlaces(updatedPlaces);
+        try {
+            await myPlacesApi.deleteMyPlace(placeId);
+
+            setPlaces((currentPlaces) =>
+                currentPlaces.filter(
+                    (place) => String(place.id) !== String(placeId)
+                )
+            );
+        } catch (error) {
+            console.error(error);
+
+            window.alert(
+                error.message || "Не удалось удалить объект"
+            );
+        }
     }
 
     return (
         <div className="account-book-section">
             <h1>Мои места</h1>
 
-            {places.length === 0 && (
+            {loading && (
+                <p>Загрузка объектов...</p>
+            )}
+
+            {!loading && places.length === 0 && (
                 <p>
-                    Объекты, которые вы добавили через форму. Пока они сохранены
-                    локально в этом браузере.
+                    Ваши объекты будут загружаться из базы данных.
                 </p>
             )}
 
@@ -37,7 +85,7 @@ export function AccountPlacesSection() {
                 Добавить место
             </Link>
 
-            {places.length === 0 ? (
+            {!loading && places.length === 0 ? (
                 <div className="account-book-empty">
                     <h2>Пока нет добавленных мест</h2>
 

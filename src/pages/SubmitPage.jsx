@@ -1,16 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
-import {
-    getFieldsByCategory,
-    getTypesByCategory,
-    submitCategories,
-} from "../data/submit/categoryFields";
-import {
-    getLocalPlaceById,
-    saveLocalPlace,
-    updateLocalPlace,
-} from "../shared/storage/localPlacesStorage";
+import { getFieldsByCategory } from "../data/submit/categoryFields";
+import { myPlacesApi } from "../shared/api/myPlacesApi";
+import { submitOptionsApi } from "../shared/api/submitOptionsApi";
 import {
     clearSubmitDraft,
     getSubmitDraft,
@@ -22,29 +15,6 @@ import {
 } from "../shared/storage/submitLocationStorage";
 
 import "./SubmitPage.css";
-
-function createSlug(value) {
-    const baseSlug = value
-        .trim()
-        .toLowerCase()
-        .replaceAll("ё", "е")
-        .replace(/[^a-zа-я0-9]+/gi, "-")
-        .replace(/^-+|-+$/g, "");
-
-    return `${baseSlug || "place"}-${Date.now()}`;
-}
-
-function createLocalId() {
-    if (crypto.randomUUID) {
-        return crypto.randomUUID();
-    }
-
-    return `local-${Date.now()}`;
-}
-
-function getCategoryTitle(categoryId) {
-    return submitCategories.find((category) => category.id === categoryId)?.title ?? "";
-}
 
 function getFormDataFromPlace(place) {
     return {
@@ -69,15 +39,54 @@ function readFileAsDataUrl(file) {
     });
 }
 
+function getContactFields(contactValue) {
+    const value = contactValue.trim();
+
+    if (!value) {
+        return {
+            phone: "",
+            telegram: "",
+            email: "",
+        };
+    }
+
+    if (value.includes("@") && !value.startsWith("@")) {
+        return {
+            phone: "",
+            telegram: "",
+            email: value,
+        };
+    }
+
+    if (value.startsWith("@") || value.toLowerCase().includes("t.me")) {
+        return {
+            phone: "",
+            telegram: value,
+            email: "",
+        };
+    }
+
+    return {
+        phone: value,
+        telegram: "",
+        email: "",
+    };
+}
+
 export function SubmitPage() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
 
     const editPlaceId = searchParams.get("edit");
-    const editingPlace = editPlaceId ? getLocalPlaceById(editPlaceId) : null;
+    const editingPlace = null;
     const initialDraft = editPlaceId ? null : getSubmitDraft();
 
     const isEditMode = Boolean(editPlaceId && editingPlace);
+
+    const [submitCategories, setSubmitCategories] = useState([]);
+    const [submitTypes, setSubmitTypes] = useState([]);
+    const [optionsLoading, setOptionsLoading] = useState(true);
+    const [optionsError, setOptionsError] = useState("");
 
     const [selectedCategory, setSelectedCategory] = useState(() => {
         return initialDraft?.selectedCategory ?? editingPlace?.categorySlug ?? "";
@@ -112,18 +121,73 @@ export function SubmitPage() {
     });
 
     const [submitStatus, setSubmitStatus] = useState("");
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const [submitLocation] = useState(() => {
         return getSubmitLocation();
     });
+
+    useEffect(() => {
+        let isMounted = true;
+
+        async function loadOptions() {
+            try {
+                const data = await submitOptionsApi.getCreateOptions();
+
+                if (!isMounted) {
+                    return;
+                }
+
+                setSubmitCategories(Array.isArray(data.categories) ? data.categories : []);
+                setSubmitTypes(Array.isArray(data.types) ? data.types : []);
+                setOptionsError("");
+            } catch (error) {
+                console.error("Не удалось загрузить справочники формы:", error);
+
+                if (isMounted) {
+                    setOptionsError(
+                        error.message || "Не удалось загрузить категории и типы объектов."
+                    );
+                }
+            } finally {
+                if (isMounted) {
+                    setOptionsLoading(false);
+                }
+            }
+        }
+
+        loadOptions();
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     const dynamicFields = useMemo(() => {
         return getFieldsByCategory(selectedCategory);
     }, [selectedCategory]);
 
     const categoryTypes = useMemo(() => {
-        return getTypesByCategory(selectedCategory);
-    }, [selectedCategory]);
+        if (!selectedCategory) {
+            return [];
+        }
+
+        return submitTypes.filter((type) => {
+            return type.category_code === selectedCategory;
+        });
+    }, [selectedCategory, submitTypes]);
+
+    const selectedCategoryItem = useMemo(() => {
+        return submitCategories.find((category) => {
+            return category.code === selectedCategory;
+        });
+    }, [selectedCategory, submitCategories]);
+
+    const selectedTypeItem = useMemo(() => {
+        return submitTypes.find((type) => {
+            return type.code === selectedType;
+        });
+    }, [selectedType, submitTypes]);
 
     function getCurrentDraft() {
         return {
@@ -144,8 +208,8 @@ export function SubmitPage() {
         saveSubmitDraft(getCurrentDraft());
     }
 
-    function handleSelectCategory(categoryId) {
-        setSelectedCategory(categoryId);
+    function handleSelectCategory(categoryCode) {
+        setSelectedCategory(categoryCode);
         setSelectedType("");
         setExtraFields({});
         setSubmitStatus("");
@@ -192,16 +256,25 @@ export function SubmitPage() {
         });
     }
 
-    function handleSubmit(event) {
+    async function handleSubmit(event) {
         event.preventDefault();
+
+        if (isSubmitting) {
+            return;
+        }
 
         if (!formData.title.trim()) {
             setSubmitStatus("Укажите название объекта.");
             return;
         }
 
-        if (!selectedCategory) {
+        if (!selectedCategoryItem) {
             setSubmitStatus("Выберите категорию.");
+            return;
+        }
+
+        if (!selectedTypeItem) {
+            setSubmitStatus("Выберите тип объекта.");
             return;
         }
 
@@ -210,66 +283,50 @@ export function SubmitPage() {
             return;
         }
 
-        const categoryTitle = getCategoryTitle(selectedCategory);
         const position = submitLocation
             ? [submitLocation.lat, submitLocation.lng]
             : editingPlace.position;
 
-        const placePayload = {
-            slug: editingPlace?.slug ?? createSlug(formData.title),
+        const contactFields = getContactFields(formData.contactValue);
 
-            title: formData.title.trim(),
+        setIsSubmitting(true);
+        setSubmitStatus("Сохраняем объект...");
 
-            categorySlug: selectedCategory,
-            categoryTitle,
+        try {
+            const createdPlace = await myPlacesApi.createMyPlace({
+                title: formData.title.trim(),
+                categoryId: selectedCategoryItem.id,
+                placeTypeId: selectedTypeItem.id,
+            });
 
-            typeSlug: selectedType,
+            await myPlacesApi.updateMyPlace({
+                id: createdPlace.place_id,
+                title: formData.title.trim(),
+                shortDescription: formData.shortDescription.trim(),
+                fullDescription: formData.fullDescription.trim(),
+                address: formData.address.trim(),
+                latitude: position[0],
+                longitude: position[1],
+                contactName: formData.contactName.trim(),
+                phone: contactFields.phone,
+                telegram: contactFields.telegram,
+                email: contactFields.email,
+                website: "",
+                bookingType: "phone",
+                bookingUrl: "",
+            });
 
-            shortDescription: formData.shortDescription.trim(),
-            description: formData.shortDescription.trim(),
-            fullDescription: formData.fullDescription.trim(),
+            clearSubmitDraft();
+            clearSubmitLocation();
 
-            locality: formData.address.trim(),
-            address: formData.address.trim(),
-
-            tags: [
-                categoryTitle,
-                selectedType,
-                formData.address.trim(),
-            ].filter(Boolean),
-
-            position,
-
-            image: gallery[0] ?? "",
-            gallery,
-
-            contact: {
-                name: formData.contactName.trim(),
-                value: formData.contactValue.trim(),
-            },
-
-            extraFields,
-
-            source: "local",
-            status: editingPlace?.status ?? "draft",
-        };
-
-        if (isEditMode) {
-            updateLocalPlace(editPlaceId, placePayload);
-            navigate(`/map?category=${selectedCategory}&place=${editPlaceId}`);
-            return;
+            setSubmitStatus("Объект отправлен на модерацию.");
+            navigate("/account");
+        } catch (error) {
+            console.error(error);
+            setSubmitStatus(error.message || "Не удалось сохранить объект.");
+        } finally {
+            setIsSubmitting(false);
         }
-
-        const newPlace = {
-            id: createLocalId(),
-            ...placePayload,
-            createdAt: new Date().toISOString(),
-        };
-
-        saveLocalPlace(newPlace);
-        clearSubmitDraft();
-        clearSubmitLocation();
-        navigate(`/map?category=${selectedCategory}&place=${newPlace.id}`);
     }
 
     if (editPlaceId && !editingPlace) {
@@ -283,10 +340,11 @@ export function SubmitPage() {
 
                         <p className="submit-page__eyebrow">Редактирование</p>
 
-                        <h1>Объект не найден</h1>
+                        <h1>Редактирование пока не подключено</h1>
 
                         <p className="submit-hero__lead">
-                            Возможно, он был удалён из локального хранилища браузера.
+                            Сейчас форма подключается к backend для создания новых объектов.
+                            Редактирование существующих объектов подключим отдельным шагом.
                         </p>
                     </div>
                 </section>
@@ -314,7 +372,7 @@ export function SubmitPage() {
 
                     <p className="submit-hero__lead">
                         {isEditMode
-                            ? "Изменения сохранятся локально в этом браузере."
+                            ? "Изменения сохранятся в базе данных."
                             : "Добавьте точку на карту: природное место, рыбалку, охоту, базу отдыха, аренду или недвижимость."}
                     </p>
                 </div>
@@ -342,12 +400,12 @@ export function SubmitPage() {
                                     <button
                                         key={category.id}
                                         className={
-                                            selectedCategory === category.id
+                                            selectedCategory === category.code
                                                 ? "submit-category is-active"
                                                 : "submit-category"
                                         }
                                         type="button"
-                                        onClick={() => handleSelectCategory(category.id)}
+                                        onClick={() => handleSelectCategory(category.code)}
                                     >
                                         {category.title}
                                     </button>
@@ -364,12 +422,12 @@ export function SubmitPage() {
                                         <button
                                             key={type.id}
                                             className={
-                                                selectedType === type.id
+                                                selectedType === type.code
                                                     ? "submit-type is-active"
                                                     : "submit-type"
                                             }
                                             type="button"
-                                            onClick={() => setSelectedType(type.id)}
+                                            onClick={() => setSelectedType(type.code)}
                                         >
                                             {type.title}
                                         </button>
@@ -493,7 +551,8 @@ export function SubmitPage() {
                         )}
 
                         <p className="submit-form__note">
-                            В демо-режиме фотографии сохраняются локально в браузере.
+                            Фотографии пока показываются как предварительный просмотр.
+                            Загрузку фото на сервер подключим отдельным шагом.
                         </p>
                     </section>
 
@@ -523,14 +582,34 @@ export function SubmitPage() {
                         </label>
                     </section>
 
+                    {optionsLoading && (
+                        <div className="submit-form__status">
+                            Загружаем категории...
+                        </div>
+                    )}
+
+                    {optionsError && (
+                        <div className="submit-form__status">
+                            {optionsError}
+                        </div>
+                    )}
+
                     {submitStatus && (
                         <div className="submit-form__status">
                             {submitStatus}
                         </div>
                     )}
 
-                    <button className="submit-form__submit" type="submit">
-                        {isEditMode ? "Сохранить изменения" : "Отправить на модерацию"}
+                    <button
+                        className="submit-form__submit"
+                        type="submit"
+                        disabled={isSubmitting || optionsLoading}
+                    >
+                        {isSubmitting
+                            ? "Сохраняем..."
+                            : isEditMode
+                                ? "Сохранить изменения"
+                                : "Отправить на модерацию"}
                     </button>
                 </form>
             </section>

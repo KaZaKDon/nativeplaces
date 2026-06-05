@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { getFavoriteIds } from "../../../shared/storage/favoritesStorage";
 import { getLocalPlaces } from "../../../shared/storage/localPlacesStorage";
 import { getConversations } from "../../../shared/storage/messagesStorage";
+import { useAuth } from "../../../shared/auth/useAuth";
 import { accountBookTabs } from "../model/accountBookTabs";
 import { AccountArchiveSection } from "./sections/AccountArchiveSection";
 import { AccountFavoritesSection } from "./sections/AccountFavoritesSection";
@@ -10,7 +11,7 @@ import { AccountMessagesSection } from "./sections/AccountMessagesSection";
 import { AccountPlacesSection } from "./sections/AccountPlacesSection";
 import { AccountRoutesSection } from "./sections/AccountRoutesSection";
 import { AccountSettingsSection } from "./sections/AccountSettingsSection";
-import { getAccountProfile } from "../../../shared/storage/accountProfileStorage";
+import { getMediaUrl } from "../../../shared/api/mediaUrl";
 
 import "./AccountBook.css";
 
@@ -23,9 +24,23 @@ const sectionComponents = {
     settings: AccountSettingsSection,
 };
 
+function mapUserToProfile(user) {
+    return {
+        name: user?.first_name || "Исследователь",
+        status: user?.profile_status || "Дневник родных мест",
+        avatar: getMediaUrl(user?.avatar),
+    };
+}
+
 export function AccountBook() {
+    const { user } = useAuth();
+
     const [activeTab, setActiveTab] = useState("places");
-    const [profile, setProfile] = useState(() => getAccountProfile());
+    const [profileOverride, setProfileOverride] = useState(null);
+
+    const profile = useMemo(() => {
+        return profileOverride ?? mapUserToProfile(user);
+    }, [profileOverride, user]);
 
     const stats = {
         places: getLocalPlaces().length,
@@ -72,7 +87,7 @@ export function AccountBook() {
             </div>
 
             <div className="account-book__right">
-                <ActiveSection onProfileUpdate={setProfile} />
+                <ActiveSection onProfileUpdate={setProfileOverride} />
             </div>
 
             <nav className="account-book__tabs" aria-label="Разделы кабинета">

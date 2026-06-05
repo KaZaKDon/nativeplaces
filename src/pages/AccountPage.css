@@ -277,6 +277,32 @@
     background: rgba(255, 120, 98, 0.12);
 }
 
+.account-page__logout {
+    position: absolute;
+
+    top: 28px;
+    right: 48px;
+
+    color: rgba(255, 255, 255, 0.75);
+
+    font-size: 18px;
+    text-decoration: none;
+
+    transition: opacity 0.2s ease;
+}
+
+.account-page__logout:hover {
+    opacity: 1;
+}
+
+.account-page__loading {
+    margin: 0;
+
+    color: rgba(255, 255, 255, 0.78);
+
+    font-size: 18px;
+}
+
 @media (max-width: 980px) {
     .account-page {
         min-height: 100dvh;
