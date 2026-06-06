@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { placesApi } from "../shared/api/placesApi";
@@ -10,6 +10,52 @@ import { favoritesApi } from "../shared/api/favoritesApi";
 import { AddToRouteModal } from "../features/routes/AddToRouteModal";
 
 import "./PlacePage.css";
+
+const PRIMARY_ATTRIBUTE_CODES = ["price", "area", "land_area", "rooms"];
+
+function formatAttributeValue(attribute) {
+    const value = attribute.value;
+
+    if (!value) {
+        return "";
+    }
+
+    if (attribute.code === "price") {
+        const numberValue = Number(value);
+
+        if (Number.isFinite(numberValue)) {
+            return `${numberValue.toLocaleString("ru-RU")} ₽`;
+        }
+
+        return value;
+    }
+
+    if (attribute.code === "area") {
+        return `${value} м²`;
+    }
+
+    if (attribute.code === "land_area") {
+        return `${value} сот.`;
+    }
+
+    if (attribute.code === "rooms") {
+        return `${value} комн.`;
+    }
+
+    return value;
+}
+
+function getPrimaryAttributes(place) {
+    return (place.attributes ?? []).filter((attribute) =>
+        PRIMARY_ATTRIBUTE_CODES.includes(attribute.code)
+    );
+}
+
+function getSecondaryAttributes(place) {
+    return (place.attributes ?? []).filter(
+        (attribute) => !PRIMARY_ATTRIBUTE_CODES.includes(attribute.code)
+    );
+}
 
 export function PlacePage() {
     const { slug } = useParams();
@@ -46,6 +92,7 @@ export function PlacePage() {
                 }
 
                 setPlace(data.place);
+
                 try {
                     const favoriteData = await favoritesApi.checkFavorite(
                         data.place.id
@@ -53,13 +100,10 @@ export function PlacePage() {
 
                     setFavorite(Boolean(favoriteData.is_favorite));
                 } catch (error) {
-                    console.error(
-                        "Не удалось проверить избранное:",
-                        error
-                    );
-
+                    console.error("Не удалось проверить избранное:", error);
                     setFavorite(false);
                 }
+
                 setPlaceError("");
                 setActiveImageIndex(0);
             } catch (error) {
@@ -67,7 +111,9 @@ export function PlacePage() {
 
                 if (isMounted) {
                     setPlace(null);
-                    setPlaceError(error.message || "Не удалось загрузить объект.");
+                    setPlaceError(
+                        error.message || "Не удалось загрузить объект."
+                    );
                 }
             } finally {
                 if (isMounted) {
@@ -123,6 +169,14 @@ export function PlacePage() {
         };
     }, [viewerOpen, showPreviousImage, showNextImage]);
 
+    const primaryAttributes = useMemo(() => {
+        return place ? getPrimaryAttributes(place) : [];
+    }, [place]);
+
+    const secondaryAttributes = useMemo(() => {
+        return place ? getSecondaryAttributes(place) : [];
+    }, [place]);
+
     function openViewer(index) {
         setActiveImageIndex(index);
         setViewerOpen(true);
@@ -134,18 +188,13 @@ export function PlacePage() {
         }
 
         try {
-            const result = await favoritesApi.toggleFavorite(
-                place.id
-            );
+            const result = await favoritesApi.toggleFavorite(place.id);
 
             setFavorite(Boolean(result.is_favorite));
         } catch (error) {
             console.error(error);
 
-            window.alert(
-                error.message ||
-                "Не удалось изменить избранное."
-            );
+            window.alert(error.message || "Не удалось изменить избранное.");
         }
     }
 
@@ -172,6 +221,7 @@ export function PlacePage() {
 
         setMessageText("");
         setMessageStatus("Сообщение сохранено в кабинете.");
+
         setTimeout(() => {
             setMessageModalOpen(false);
             setMessageStatus("");
@@ -196,7 +246,10 @@ export function PlacePage() {
                 <section className="place-page__not-found">
                     <p className="place-page__eyebrow">Место не найдено</p>
                     <h1>Такого объекта пока нет</h1>
-                    <p>{placeError || "Возможно, ссылка устарела или объект еще не добавлен в базу."}</p>
+                    <p>
+                        {placeError ||
+                            "Возможно, ссылка устарела или объект еще не добавлен в базу."}
+                    </p>
 
                     <Link className="place-page__button" to="/map">
                         Вернуться к карте
@@ -208,12 +261,9 @@ export function PlacePage() {
 
     const tags = Array.from(
         new Set(
-            [
-                place.locality,
-                place.area,
-                place.landArea,
-                ...(place.tags ?? []),
-            ].filter(Boolean)
+            [place.locality, place.typeTitle, place.categoryTitle].filter(
+                Boolean
+            )
         )
     );
 
@@ -224,68 +274,94 @@ export function PlacePage() {
             <section className="place-hero">
                 <div className="place-hero__image">
                     {images.length > 0 ? (
-                        <>
-                            <button
-                                className="place-hero__image-button"
-                                type="button"
-                                onClick={() => openViewer(activeImageIndex)}
-                            >
-                                <img
-                                    src={images[activeImageIndex]}
-                                    alt={`${place.title} — фото ${activeImageIndex + 1}`}
-                                />
-                            </button>
+                        <div className="place-hero__gallery">
+                            <div className="place-hero__main">
+                                <button
+                                    className="place-hero__image-button"
+                                    type="button"
+                                    onClick={() => openViewer(activeImageIndex)}
+                                >
+                                    <img
+                                        src={images[activeImageIndex]}
+                                        alt={`${place.title} — фото ${
+                                            activeImageIndex + 1
+                                        }`}
+                                    />
+                                </button>
+
+                                {images.length > 1 && (
+                                    <>
+                                        <button
+                                            className="place-hero__arrow place-hero__arrow--prev"
+                                            type="button"
+                                            onClick={showPreviousImage}
+                                            aria-label="Предыдущее фото"
+                                        >
+                                            ‹
+                                        </button>
+
+                                        <button
+                                            className="place-hero__arrow place-hero__arrow--next"
+                                            type="button"
+                                            onClick={showNextImage}
+                                            aria-label="Следующее фото"
+                                        >
+                                            ›
+                                        </button>
+
+                                        <div className="place-hero__counter">
+                                            {activeImageIndex + 1} /{" "}
+                                            {images.length}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
 
                             {images.length > 1 && (
-                                <>
-                                    <button
-                                        className="place-hero__arrow place-hero__arrow--prev"
-                                        type="button"
-                                        onClick={showPreviousImage}
-                                        aria-label="Предыдущее фото"
-                                    >
-                                        ‹
-                                    </button>
-
-                                    <button
-                                        className="place-hero__arrow place-hero__arrow--next"
-                                        type="button"
-                                        onClick={showNextImage}
-                                        aria-label="Следующее фото"
-                                    >
-                                        ›
-                                    </button>
-
-                                    <div className="place-hero__counter">
-                                        {activeImageIndex + 1} / {images.length}
-                                    </div>
-
-                                    <div className="place-hero__dots">
-                                        {images.map((image, index) => (
-                                            <button
-                                                key={`${image}-${index}`}
-                                                className={
-                                                    index === activeImageIndex
-                                                        ? "place-hero__dot is-active"
-                                                        : "place-hero__dot"
-                                                }
-                                                type="button"
-                                                onClick={() => setActiveImageIndex(index)}
-                                                aria-label={`Фото ${index + 1}`}
+                                <div
+                                    className="place-hero__thumbs"
+                                    aria-label="Фотографии объекта"
+                                >
+                                    {images.map((image, index) => (
+                                        <button
+                                            key={`${image}-${index}`}
+                                            className={
+                                                index === activeImageIndex
+                                                    ? "place-hero__thumb is-active"
+                                                    : "place-hero__thumb"
+                                            }
+                                            type="button"
+                                            onClick={() =>
+                                                setActiveImageIndex(index)
+                                            }
+                                            aria-label={`Показать фото ${
+                                                index + 1
+                                            }`}
+                                        >
+                                            <img
+                                                src={image}
+                                                alt={`${place.title} — миниатюра ${
+                                                    index + 1
+                                                }`}
                                             />
-                                        ))}
-                                    </div>
-                                </>
+                                        </button>
+                                    ))}
+                                </div>
                             )}
-                        </>
+                        </div>
                     ) : (
-                        <div className="place-hero__placeholder">Фото объекта</div>
+                        <div className="place-hero__placeholder">
+                            Фото объекта
+                        </div>
                     )}
                 </div>
 
                 <div className="place-hero__content">
                     <div className="place-page__topbar">
-                        <Link className="place-page__back" to={createPlaceMapUrl(place)}>
+                        <Link
+                            className="place-page__back"
+                            to={createPlaceMapUrl(place)}
+                        >
                             ← Вернуться к карте
                         </Link>
 
@@ -298,18 +374,58 @@ export function PlacePage() {
                         </button>
                     </div>
 
-                    <p className="place-page__eyebrow">{place.categoryTitle}</p>
+                    <p className="place-page__eyebrow">
+                        {place.categoryTitle}
+                    </p>
 
                     <h1>{place.title}</h1>
 
-                    {place.price && <div className="place-page__price">{place.price}</div>}
+                    {primaryAttributes.length > 0 && (
+                        <div className="place-page__summary">
+                            {primaryAttributes.map((attribute) => (
+                                <span
+                                    className="place-page__summary-item"
+                                    key={attribute.id || attribute.code}
+                                >
+                                    {formatAttributeValue(attribute)}
+                                </span>
+                            ))}
+                        </div>
+                    )}
 
                     <p className="place-hero__lead">
                         {place.fullDescription || place.description}
                     </p>
 
+                    {secondaryAttributes.length > 0 && (
+                        <section className="place-page__attributes">
+                            <h2>Характеристики объекта</h2>
+
+                            <div className="place-page__attributes-scroll">
+                                <dl>
+                                    {secondaryAttributes.map((attribute) => (
+                                        <div
+                                            className="place-page__attribute-row"
+                                            key={attribute.id || attribute.code}
+                                        >
+                                            <dt>{attribute.title}</dt>
+                                            <dd>
+                                                {formatAttributeValue(
+                                                    attribute
+                                                )}
+                                            </dd>
+                                        </div>
+                                    ))}
+                                </dl>
+                            </div>
+                        </section>
+                    )}
+
                     {tags.length > 0 && (
-                        <div className="place-page__tags" aria-label="Метки объекта">
+                        <div
+                            className="place-page__tags"
+                            aria-label="Метки объекта"
+                        >
                             {tags.map((tag) => (
                                 <span className="place-page__tag" key={tag}>
                                     {tag}
@@ -331,7 +447,10 @@ export function PlacePage() {
                             {favorite ? "В избранном" : "В избранное"}
                         </button>
 
-                        <Link className="place-page__button" to={createPlaceMapUrl(place)}>
+                        <Link
+                            className="place-page__button"
+                            to={createPlaceMapUrl(place)}
+                        >
                             Открыть на карте
                         </Link>
 
@@ -353,6 +472,7 @@ export function PlacePage() {
                             Все категории
                         </Link>
                     </div>
+
                     <div className="place-page__route-add">
                         <button
                             className="place-page__button place-page__button--add-route"
@@ -422,7 +542,9 @@ export function PlacePage() {
                             ×
                         </button>
 
-                        <p className="place-page__eyebrow">Сообщение автору</p>
+                        <p className="place-page__eyebrow">
+                            Сообщение автору
+                        </p>
 
                         <h2>{place.title}</h2>
 
@@ -449,6 +571,7 @@ export function PlacePage() {
                                             setMessageStatus("");
                                         }}
                                     />
+
                                     {messageStatus && (
                                         <p className="message-modal__status">
                                             {messageStatus}
@@ -472,6 +595,7 @@ export function PlacePage() {
                     </div>
                 </div>
             )}
+
             {routeModalOpen && (
                 <AddToRouteModal
                     place={place}

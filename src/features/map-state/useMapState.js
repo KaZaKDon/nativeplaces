@@ -20,14 +20,26 @@ export function useMapState() {
     const search = getSearchFromParams(searchParams);
 
     function patchUrlParams(changes) {
-        setSearchParams((currentParams) => updateMapSearchParams(currentParams, changes));
+        const nextParams = updateMapSearchParams(searchParams, changes);
+
+        if (nextParams.toString() === searchParams.toString()) {
+            return;
+        }
+
+        setSearchParams(nextParams, {
+            replace: true,
+        });
     }
 
-    function setCategory(categorySlug) {
+    function setCategory(categorySlug, options = {}) {
+        const { keepSelectedPlace = false } = options;
+
         patchUrlParams({
-            [MAP_URL_PARAMS.CATEGORY]: categorySlug === MAP_CATEGORY_ALL ? null : categorySlug,
-            [MAP_URL_PARAMS.PLACE]: null,
+            [MAP_URL_PARAMS.CATEGORY]:
+                categorySlug === MAP_CATEGORY_ALL ? null : categorySlug,
+            [MAP_URL_PARAMS.PLACE]: keepSelectedPlace ? selectedPlaceId : null,
         });
+
         setSheetState(MAP_SHEET_STATES.HALF);
     }
 
@@ -35,6 +47,7 @@ export function useMapState() {
         patchUrlParams({
             [MAP_URL_PARAMS.PLACE]: placeId,
         });
+
         setSheetState(MAP_SHEET_STATES.HALF);
     }
 
@@ -42,6 +55,7 @@ export function useMapState() {
         patchUrlParams({
             [MAP_URL_PARAMS.PLACE]: null,
         });
+
         setSheetState(MAP_SHEET_STATES.HALF);
     }
 
@@ -50,6 +64,7 @@ export function useMapState() {
             [MAP_URL_PARAMS.SEARCH]: searchValue,
             [MAP_URL_PARAMS.PLACE]: null,
         });
+
         setSheetState(MAP_SHEET_STATES.HALF);
     }
 

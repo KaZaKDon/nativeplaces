@@ -1,9 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import { getFavoriteIds } from "../../../shared/storage/favoritesStorage";
-import { getLocalPlaces } from "../../../shared/storage/localPlacesStorage";
-import { getConversations } from "../../../shared/storage/messagesStorage";
 import { useAuth } from "../../../shared/auth/useAuth";
+import { favoritesApi } from "../../../shared/api/favoritesApi";
+import { myPlacesApi } from "../../../shared/api/myPlacesApi";
 import { accountBookTabs } from "../model/accountBookTabs";
 import { AccountArchiveSection } from "./sections/AccountArchiveSection";
 import { AccountFavoritesSection } from "./sections/AccountFavoritesSection";
@@ -38,14 +37,86 @@ export function AccountBook() {
     const [activeTab, setActiveTab] = useState("places");
     const [profileOverride, setProfileOverride] = useState(null);
 
+    const [places, setPlaces] = useState([]);
+    const [favorites, setFavorites] = useState([]);
+
+    const [placesLoading, setPlacesLoading] = useState(true);
+    const [favoritesLoading, setFavoritesLoading] = useState(true);
+
     const profile = useMemo(() => {
         return profileOverride ?? mapUserToProfile(user);
     }, [profileOverride, user]);
 
+    useEffect(() => {
+        let isMounted = true;
+
+        async function loadPlaces() {
+            try {
+                const data = await myPlacesApi.getMyPlaces();
+
+                if (!isMounted) {
+                    return;
+                }
+
+                setPlaces(Array.isArray(data.places) ? data.places : []);
+            } catch (error) {
+                console.error("Не удалось загрузить мои места:", error);
+
+                if (isMounted) {
+                    setPlaces([]);
+                }
+            } finally {
+                if (isMounted) {
+                    setPlacesLoading(false);
+                }
+            }
+        }
+
+        loadPlaces();
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        async function loadFavorites() {
+            try {
+                const data = await favoritesApi.getFavorites();
+
+                if (!isMounted) {
+                    return;
+                }
+
+                setFavorites(
+                    Array.isArray(data.favorites) ? data.favorites : []
+                );
+            } catch (error) {
+                console.error("Не удалось загрузить избранное:", error);
+
+                if (isMounted) {
+                    setFavorites([]);
+                }
+            } finally {
+                if (isMounted) {
+                    setFavoritesLoading(false);
+                }
+            }
+        }
+
+        loadFavorites();
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
+
     const stats = {
-        places: getLocalPlaces().length,
-        favorites: getFavoriteIds().length,
-        messages: getConversations().length,
+        places: places.length,
+        favorites: favorites.length,
+        messages: 0,
     };
 
     const ActiveSection = sectionComponents[activeTab] || AccountPlacesSection;
@@ -66,12 +137,14 @@ export function AccountBook() {
 
                 <div className="account-book__stats">
                     <div>
-                        <strong>{stats.places}</strong>
+                        <strong>{placesLoading ? "…" : stats.places}</strong>
                         <span>мест</span>
                     </div>
 
                     <div>
-                        <strong>{stats.favorites}</strong>
+                        <strong>
+                            {favoritesLoading ? "…" : stats.favorites}
+                        </strong>
                         <span>избранных</span>
                     </div>
 
@@ -87,7 +160,15 @@ export function AccountBook() {
             </div>
 
             <div className="account-book__right">
-                <ActiveSection onProfileUpdate={setProfileOverride} />
+                <ActiveSection
+                    places={places}
+                    setPlaces={setPlaces}
+                    placesLoading={placesLoading}
+                    favorites={favorites}
+                    setFavorites={setFavorites}
+                    favoritesLoading={favoritesLoading}
+                    onProfileUpdate={setProfileOverride}
+                />
             </div>
 
             <nav className="account-book__tabs" aria-label="Разделы кабинета">

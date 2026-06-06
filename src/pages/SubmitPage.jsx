@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
-import { getFieldsByCategory } from "../data/submit/categoryFields";
 import { myPlacesApi } from "../shared/api/myPlacesApi";
 import { submitOptionsApi } from "../shared/api/submitOptionsApi";
 import {
@@ -17,13 +16,19 @@ import {
 import "./SubmitPage.css";
 
 function getFormDataFromPlace(place) {
+    const contactValue =
+        place?.contact?.phone ||
+        place?.contact?.telegram ||
+        place?.contact?.email ||
+        "";
+
     return {
         title: place?.title ?? "",
         shortDescription: place?.shortDescription ?? place?.description ?? "",
         fullDescription: place?.fullDescription ?? "",
         address: place?.address ?? place?.locality ?? "",
         contactName: place?.contact?.name ?? "",
-        contactValue: place?.contact?.value ?? "",
+        contactValue,
     };
 }
 
@@ -37,6 +42,16 @@ function readFileAsDataUrl(file) {
 
         reader.readAsDataURL(file);
     });
+}
+
+function createLocalGalleryItem(dataUrl, file) {
+    return {
+        id: null,
+        url: dataUrl,
+        file,
+        isCover: false,
+        isUploaded: false,
+    };
 }
 
 function getContactFields(contactValue) {
@@ -78,8 +93,11 @@ export function SubmitPage() {
     const [searchParams] = useSearchParams();
 
     const editPlaceId = searchParams.get("edit");
-    const editingPlace = null;
     const initialDraft = editPlaceId ? null : getSubmitDraft();
+
+    const [editingPlace, setEditingPlace] = useState(null);
+    const [editingLoading, setEditingLoading] = useState(Boolean(editPlaceId));
+    const [editingError, setEditingError] = useState("");
 
     const isEditMode = Boolean(editPlaceId && editingPlace);
 
@@ -88,36 +106,27 @@ export function SubmitPage() {
     const [optionsLoading, setOptionsLoading] = useState(true);
     const [optionsError, setOptionsError] = useState("");
 
+    const [attributeDefinitions, setAttributeDefinitions] = useState([]);
+    const [attributesLoading, setAttributesLoading] = useState(false);
+
     const [selectedCategory, setSelectedCategory] = useState(() => {
-        return initialDraft?.selectedCategory ?? editingPlace?.categorySlug ?? "";
+        return initialDraft?.selectedCategory ?? "";
     });
 
     const [selectedType, setSelectedType] = useState(() => {
-        return initialDraft?.selectedType ?? editingPlace?.typeSlug ?? "";
+        return initialDraft?.selectedType ?? "";
     });
 
     const [formData, setFormData] = useState(() => {
-        return initialDraft?.formData ?? getFormDataFromPlace(editingPlace);
+        return initialDraft?.formData ?? getFormDataFromPlace(null);
     });
 
     const [extraFields, setExtraFields] = useState(() => {
-        return initialDraft?.extraFields ?? editingPlace?.extraFields ?? {};
+        return initialDraft?.extraFields ?? {};
     });
 
     const [gallery, setGallery] = useState(() => {
-        if (initialDraft?.gallery?.length) {
-            return initialDraft.gallery;
-        }
-
-        if (editingPlace?.gallery?.length) {
-            return editingPlace.gallery;
-        }
-
-        if (editingPlace?.image) {
-            return [editingPlace.image];
-        }
-
-        return [];
+        return initialDraft?.gallery ?? [];
     });
 
     const [submitStatus, setSubmitStatus] = useState("");
@@ -138,15 +147,20 @@ export function SubmitPage() {
                     return;
                 }
 
-                setSubmitCategories(Array.isArray(data.categories) ? data.categories : []);
+                setSubmitCategories(
+                    Array.isArray(data.categories) ? data.categories : []
+                );
+
                 setSubmitTypes(Array.isArray(data.types) ? data.types : []);
+
                 setOptionsError("");
             } catch (error) {
                 console.error("Не удалось загрузить справочники формы:", error);
 
                 if (isMounted) {
                     setOptionsError(
-                        error.message || "Не удалось загрузить категории и типы объектов."
+                        error.message ||
+                        "Не удалось загрузить категории и типы объектов."
                     );
                 }
             } finally {
@@ -163,9 +177,62 @@ export function SubmitPage() {
         };
     }, []);
 
-    const dynamicFields = useMemo(() => {
-        return getFieldsByCategory(selectedCategory);
-    }, [selectedCategory]);
+    useEffect(() => {
+        let isMounted = true;
+
+        async function loadEditingPlace() {
+            if (!editPlaceId) {
+                setEditingLoading(false);
+                return;
+            }
+
+            setEditingLoading(true);
+            setEditingError("");
+
+            try {
+                const data = await myPlacesApi.getMyPlace(editPlaceId);
+
+                if (!isMounted) {
+                    return;
+                }
+
+                if (!data.place) {
+                    setEditingPlace(null);
+                    setEditingError("Объект не найден или нет доступа.");
+                    return;
+                }
+
+                const place = data.place;
+
+                setEditingPlace(place);
+                setSelectedCategory(place.categorySlug || "");
+                setSelectedType(place.typeSlug || "");
+                setFormData(getFormDataFromPlace(place));
+                setExtraFields(place.extraFields || {});
+                setGallery(Array.isArray(place.gallery) ? place.gallery : []);
+            } catch (error) {
+                console.error("Не удалось загрузить объект для редактирования:", error);
+
+                if (isMounted) {
+                    setEditingPlace(null);
+                    setEditingError(
+                        error.message ||
+                        "Не удалось загрузить объект для редактирования."
+                    );
+                }
+            } finally {
+                if (isMounted) {
+                    setEditingLoading(false);
+                }
+            }
+        }
+
+        loadEditingPlace();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [editPlaceId]);
 
     const categoryTypes = useMemo(() => {
         if (!selectedCategory) {
@@ -188,6 +255,49 @@ export function SubmitPage() {
             return type.code === selectedType;
         });
     }, [selectedType, submitTypes]);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        async function loadAttributeDefinitions() {
+            if (!selectedCategoryItem?.id) {
+                setAttributeDefinitions([]);
+                return;
+            }
+
+            setAttributesLoading(true);
+
+            try {
+                const data = await myPlacesApi.getAttributeDefinitions(
+                    selectedCategoryItem.id
+                );
+
+                if (!isMounted) {
+                    return;
+                }
+
+                setAttributeDefinitions(
+                    Array.isArray(data.attributes) ? data.attributes : []
+                );
+            } catch (error) {
+                console.error("Не удалось загрузить характеристики:", error);
+
+                if (isMounted) {
+                    setAttributeDefinitions([]);
+                }
+            } finally {
+                if (isMounted) {
+                    setAttributesLoading(false);
+                }
+            }
+        }
+
+        loadAttributeDefinitions();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [selectedCategoryItem]);
 
     function getCurrentDraft() {
         return {
@@ -246,14 +356,119 @@ export function SubmitPage() {
 
         const images = await Promise.all(files.map(readFileAsDataUrl));
 
-        setGallery((currentGallery) => [...currentGallery, ...images]);
+        const galleryItems = images.map((image, index) =>
+            createLocalGalleryItem(image, files[index])
+        );
+
+        setGallery((currentGallery) => [...currentGallery, ...galleryItems]);
         setSubmitStatus("");
+
+        event.target.value = "";
     }
 
-    function handleRemoveImage(indexToRemove) {
-        setGallery((currentGallery) => {
-            return currentGallery.filter((_, index) => index !== indexToRemove);
-        });
+    async function handleRemoveImage(indexToRemove) {
+        const image = gallery[indexToRemove];
+
+        if (!image) {
+            return;
+        }
+
+        if (image.isUploaded && image.id) {
+            const isConfirmed = window.confirm("Удалить эту фотографию?");
+
+            if (!isConfirmed) {
+                return;
+            }
+
+            try {
+                await myPlacesApi.deleteMyPlaceImage(image.id);
+
+                setGallery((currentGallery) =>
+                    currentGallery.filter((_, index) => index !== indexToRemove)
+                );
+
+                setSubmitStatus("Фотография удалена.");
+            } catch (error) {
+                console.error(error);
+                setSubmitStatus(error.message || "Не удалось удалить фотографию.");
+            }
+
+            return;
+        }
+
+        setGallery((currentGallery) =>
+            currentGallery.filter((_, index) => index !== indexToRemove)
+        );
+    }
+
+    async function handleSetCoverImage(index) {
+        const image = gallery[index];
+
+        if (!image?.isUploaded || !image.id) {
+            setSubmitStatus(
+                "Новую фотографию можно сделать обложкой после сохранения объявления."
+            );
+            return;
+        }
+
+        try {
+            await myPlacesApi.setMyPlaceCoverImage(image.id);
+
+            setGallery((currentGallery) =>
+                currentGallery.map((galleryItem) => ({
+                    ...galleryItem,
+                    isCover: galleryItem.id === image.id,
+                }))
+            );
+
+            setSubmitStatus("Обложка обновлена.");
+        } catch (error) {
+            console.error(error);
+            setSubmitStatus(error.message || "Не удалось обновить обложку.");
+        }
+    }
+
+    async function handleMoveImage(index, direction) {
+        const targetIndex = index + direction;
+
+        if (targetIndex < 0 || targetIndex >= gallery.length) {
+            return;
+        }
+
+        const currentImage = gallery[index];
+        const targetImage = gallery[targetIndex];
+
+        if (!currentImage?.isUploaded || !targetImage?.isUploaded) {
+            setSubmitStatus(
+                "Порядок новых фотографий можно изменить после сохранения объявления."
+            );
+            return;
+        }
+
+        const nextGallery = [...gallery];
+        [nextGallery[index], nextGallery[targetIndex]] = [
+            nextGallery[targetIndex],
+            nextGallery[index],
+        ];
+
+        const imageIds = nextGallery
+            .filter((image) => image.isUploaded && image.id)
+            .map((image) => image.id);
+
+        try {
+            setGallery(nextGallery);
+
+            await myPlacesApi.reorderMyPlaceImages(editPlaceId, imageIds);
+
+            setSubmitStatus("Порядок фотографий обновлён.");
+        } catch (error) {
+            console.error(error);
+
+            setGallery(gallery);
+            setSubmitStatus(
+                error.message || "Не удалось изменить порядок фотографий."
+            );
+        }
     }
 
     async function handleSubmit(event) {
@@ -268,13 +483,16 @@ export function SubmitPage() {
             return;
         }
 
-        if (!selectedCategoryItem) {
-            setSubmitStatus("Выберите категорию.");
+        const currentCategoryId = selectedCategoryItem?.id ?? editingPlace?.categoryId;
+        const currentPlaceTypeId = selectedTypeItem?.id ?? editingPlace?.placeTypeId;
+
+        if (!currentCategoryId) {
+            setSubmitStatus("Не удалось определить категорию объекта.");
             return;
         }
 
-        if (!selectedTypeItem) {
-            setSubmitStatus("Выберите тип объекта.");
+        if (!currentPlaceTypeId) {
+            setSubmitStatus("Не удалось определить тип объекта.");
             return;
         }
 
@@ -290,17 +508,25 @@ export function SubmitPage() {
         const contactFields = getContactFields(formData.contactValue);
 
         setIsSubmitting(true);
-        setSubmitStatus("Сохраняем объект...");
+        setSubmitStatus(
+            isEditMode ? "Сохраняем изменения..." : "Сохраняем объект..."
+        );
 
         try {
-            const createdPlace = await myPlacesApi.createMyPlace({
-                title: formData.title.trim(),
-                categoryId: selectedCategoryItem.id,
-                placeTypeId: selectedTypeItem.id,
-            });
+            let placeId = editPlaceId;
+
+            if (!isEditMode) {
+                const createdPlace = await myPlacesApi.createMyPlace({
+                    title: formData.title.trim(),
+                    categoryId: currentCategoryId,
+                    placeTypeId: currentPlaceTypeId,
+                });
+
+                placeId = createdPlace.place_id;
+            }
 
             await myPlacesApi.updateMyPlace({
-                id: createdPlace.place_id,
+                id: placeId,
                 title: formData.title.trim(),
                 shortDescription: formData.shortDescription.trim(),
                 fullDescription: formData.fullDescription.trim(),
@@ -311,15 +537,39 @@ export function SubmitPage() {
                 phone: contactFields.phone,
                 telegram: contactFields.telegram,
                 email: contactFields.email,
-                website: "",
-                bookingType: "phone",
-                bookingUrl: "",
+                website: editingPlace?.contact?.website || "",
+                bookingType: editingPlace?.bookingType || "phone",
+                bookingUrl: editingPlace?.bookingUrl || "",
             });
+
+            const attributes = attributeDefinitions.map((field) => ({
+                attribute_definition_id: field.id,
+                value: extraFields[String(field.id)] ?? "",
+            }));
+
+            if (attributes.length > 0) {
+                await myPlacesApi.saveMyPlaceAttributes(placeId, attributes);
+            }
+
+            const newImages = gallery.filter((image) => !image.isUploaded && image.file);
+
+            if (newImages.length > 0) {
+                setSubmitStatus("Загружаем фотографии...");
+
+                for (const image of newImages) {
+                    await myPlacesApi.uploadMyPlaceImage(placeId, image.file);
+                }
+            }
 
             clearSubmitDraft();
             clearSubmitLocation();
 
-            setSubmitStatus("Объект отправлен на модерацию.");
+            setSubmitStatus(
+                isEditMode
+                    ? "Изменения сохранены."
+                    : "Объект отправлен на модерацию."
+            );
+
             navigate("/account");
         } catch (error) {
             console.error(error);
@@ -329,7 +579,32 @@ export function SubmitPage() {
         }
     }
 
-    if (editPlaceId && !editingPlace) {
+    if (editingLoading || optionsLoading) {
+        return (
+            <main className="submit-page">
+                <section className="submit-hero">
+                    <div className="submit-hero__content">
+                        <Link className="submit-page__back" to="/account">
+                            ← В кабинет
+                        </Link>
+
+                        <p className="submit-page__eyebrow">
+                            {editPlaceId ? "Редактирование" : "Добавление"}
+                        </p>
+
+                        <h1>Загружаем форму</h1>
+
+                        <p className="submit-hero__lead">
+                            Получаем категории, типы объектов и данные
+                            объявления.
+                        </p>
+                    </div>
+                </section>
+            </main>
+        );
+    }
+
+    if (editPlaceId && editingError) {
         return (
             <main className="submit-page">
                 <section className="submit-hero">
@@ -340,12 +615,9 @@ export function SubmitPage() {
 
                         <p className="submit-page__eyebrow">Редактирование</p>
 
-                        <h1>Редактирование пока не подключено</h1>
+                        <h1>Не удалось открыть объявление</h1>
 
-                        <p className="submit-hero__lead">
-                            Сейчас форма подключается к backend для создания новых объектов.
-                            Редактирование существующих объектов подключим отдельным шагом.
-                        </p>
+                        <p className="submit-hero__lead">{editingError}</p>
                     </div>
                 </section>
             </main>
@@ -356,7 +628,10 @@ export function SubmitPage() {
         <main className="submit-page">
             <section className="submit-hero">
                 <div className="submit-hero__content">
-                    <Link className="submit-page__back" to={isEditMode ? "/account" : "/categories"}>
+                    <Link
+                        className="submit-page__back"
+                        to={isEditMode ? "/account" : "/categories"}
+                    >
                         {isEditMode ? "← В кабинет" : "← Назад к категориям"}
                     </Link>
 
@@ -405,7 +680,10 @@ export function SubmitPage() {
                                                 : "submit-category"
                                         }
                                         type="button"
-                                        onClick={() => handleSelectCategory(category.code)}
+                                        onClick={() =>
+                                            handleSelectCategory(category.code)
+                                        }
+                                        disabled={isEditMode}
                                     >
                                         {category.title}
                                     </button>
@@ -427,7 +705,10 @@ export function SubmitPage() {
                                                     : "submit-type"
                                             }
                                             type="button"
-                                            onClick={() => setSelectedType(type.code)}
+                                            onClick={() =>
+                                                setSelectedType(type.code)
+                                            }
+                                            disabled={isEditMode}
                                         >
                                             {type.title}
                                         </button>
@@ -459,21 +740,59 @@ export function SubmitPage() {
                         </label>
                     </section>
 
-                    {dynamicFields.length > 0 && (
+                    {attributesLoading && (
+                        <section className="submit-form__section">
+                            <h2>Детали категории</h2>
+                            <p>Загружаем поля категории...</p>
+                        </section>
+                    )}
+
+                    {!attributesLoading && attributeDefinitions.length > 0 && (
                         <section className="submit-form__section">
                             <h2>Детали категории</h2>
 
                             <div className="submit-form__grid">
-                                {dynamicFields.map((field) => (
-                                    <label className="submit-form__field" key={field.name}>
-                                        <span>{field.label}</span>
-                                        <input
-                                            type="text"
-                                            name={field.name}
-                                            value={extraFields[field.name] ?? ""}
-                                            placeholder={field.placeholder}
-                                            onChange={handleExtraFieldChange}
-                                        />
+                                {attributeDefinitions.map((field) => (
+                                    <label
+                                        className="submit-form__field"
+                                        key={field.id}
+                                    >
+                                        <span>{field.title}</span>
+
+                                        {field.field_type === "textarea" ? (
+                                            <textarea
+                                                rows="3"
+                                                name={String(field.id)}
+                                                value={
+                                                    extraFields[
+                                                    String(field.id)
+                                                    ] ?? ""
+                                                }
+                                                placeholder={field.title}
+                                                onChange={
+                                                    handleExtraFieldChange
+                                                }
+                                            />
+                                        ) : (
+                                            <input
+                                                type={
+                                                    field.field_type ===
+                                                        "number"
+                                                        ? "number"
+                                                        : "text"
+                                                }
+                                                name={String(field.id)}
+                                                value={
+                                                    extraFields[
+                                                    String(field.id)
+                                                    ] ?? ""
+                                                }
+                                                placeholder={field.title}
+                                                onChange={
+                                                    handleExtraFieldChange
+                                                }
+                                            />
+                                        )}
                                     </label>
                                 ))}
                             </div>
@@ -500,11 +819,13 @@ export function SubmitPage() {
 
                                 {submitLocation ? (
                                     <strong>
-                                        {submitLocation.lat}, {submitLocation.lng}
+                                        {submitLocation.lat},{" "}
+                                        {submitLocation.lng}
                                     </strong>
                                 ) : editingPlace?.position ? (
                                     <strong>
-                                        {editingPlace.position[0]}, {editingPlace.position[1]}
+                                        {editingPlace.position[0]},{" "}
+                                        {editingPlace.position[1]}
                                     </strong>
                                 ) : (
                                     <strong>Точка пока не выбрана</strong>
@@ -536,23 +857,67 @@ export function SubmitPage() {
                         {gallery.length > 0 && (
                             <div className="submit-gallery-preview">
                                 {gallery.map((image, index) => (
-                                    <div className="submit-gallery-preview__item" key={`${image}-${index}`}>
-                                        <img src={image} alt={`Фото ${index + 1}`} />
+                                    <div
+                                        className={
+                                            image.isCover
+                                                ? "submit-gallery-preview__item submit-gallery-preview__item--cover"
+                                                : "submit-gallery-preview__item"
+                                        }
+                                        key={`${image.id ?? "local"}-${image.url}-${index}`}
+                                    >
+                                        <img src={image.url} alt={`Фото ${index + 1}`} />
 
-                                        <button
-                                            type="button"
-                                            onClick={() => handleRemoveImage(index)}
-                                        >
-                                            Удалить
-                                        </button>
+                                        <div className="submit-gallery-preview__actions">
+                                            <button
+                                                type="button"
+                                                onClick={() => handleMoveImage(index, -1)}
+                                                disabled={index === 0 || !image.isUploaded}
+                                            >
+                                                ←
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => handleMoveImage(index, 1)}
+                                                disabled={index === gallery.length - 1 || !image.isUploaded}
+                                            >
+                                                →
+                                            </button>
+                                            {image.isCover ? (
+                                                <span className="submit-gallery-preview__badge">
+                                                    Обложка
+                                                </span>
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleSetCoverImage(index)}
+                                                    disabled={!image.isUploaded}
+                                                >
+                                                    Сделать обложкой
+                                                </button>
+                                            )}
+
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRemoveImage(index)}
+                                            >
+                                                Удалить
+                                            </button>
+                                        </div>
+
+                                        {!image.isUploaded && (
+                                            <span className="submit-gallery-preview__new">
+                                                Будет загружено после сохранения
+                                            </span>
+                                        )}
                                     </div>
                                 ))}
                             </div>
                         )}
 
                         <p className="submit-form__note">
-                            Фотографии пока показываются как предварительный просмотр.
-                            Загрузку фото на сервер подключим отдельным шагом.
+                            Первая загруженная фотография становится обложкой автоматически.
+                            В режиме редактирования можно удалить фото или выбрать другую обложку.
                         </p>
                     </section>
 
@@ -582,12 +947,6 @@ export function SubmitPage() {
                         </label>
                     </section>
 
-                    {optionsLoading && (
-                        <div className="submit-form__status">
-                            Загружаем категории...
-                        </div>
-                    )}
-
                     {optionsError && (
                         <div className="submit-form__status">
                             {optionsError}
@@ -603,7 +962,12 @@ export function SubmitPage() {
                     <button
                         className="submit-form__submit"
                         type="submit"
-                        disabled={isSubmitting || optionsLoading}
+                        disabled={
+                            isSubmitting ||
+                            optionsLoading ||
+                            attributesLoading ||
+                            editingLoading
+                        }
                     >
                         {isSubmitting
                             ? "Сохраняем..."

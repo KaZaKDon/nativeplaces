@@ -3,12 +3,29 @@ import { Link } from "react-router-dom";
 
 import { getAccountPlaceStatus } from "../../lib/getAccountPlaceStatus";
 
+function createAccountPlaceMapUrl(place) {
+    const params = new URLSearchParams();
+
+    if (place.categorySlug) {
+        params.set("category", place.categorySlug);
+    }
+
+    if (place.id) {
+        params.set("place", String(place.id));
+    }
+
+    const query = params.toString();
+
+    return query ? `/map?${query}` : "/map";
+}
+
 export function AccountPlaceCard({ place, onDelete, deleteLabel = "Удалить" }) {
-    const gallery = place.gallery?.length > 0
-        ? place.gallery
-        : place.image
-            ? [place.image]
-            : [];
+    const gallery =
+        place.gallery?.length > 0
+            ? place.gallery
+            : place.image
+                ? [place.image]
+                : [];
 
     const [activeImageIndex, setActiveImageIndex] = useState(0);
 
@@ -18,6 +35,7 @@ export function AccountPlaceCard({ place, onDelete, deleteLabel = "Удалит�
         "Описание пока не добавлено.";
 
     const activeImage = gallery[activeImageIndex];
+    const mapUrl = createAccountPlaceMapUrl(place);
 
     function handlePrevImage() {
         setActiveImageIndex((currentIndex) => {
@@ -79,7 +97,9 @@ export function AccountPlaceCard({ place, onDelete, deleteLabel = "Удалит�
                                         }
                                         key={`${image}-${index}`}
                                         type="button"
-                                        onClick={() => setActiveImageIndex(index)}
+                                        onClick={() =>
+                                            setActiveImageIndex(index)
+                                        }
                                         aria-label={`Открыть фото ${index + 1}`}
                                     />
                                 ))}
@@ -104,7 +124,7 @@ export function AccountPlaceCard({ place, onDelete, deleteLabel = "Удалит�
             <p>{description}</p>
 
             <div className="account-book-place__meta">
-                <span>{place.locality || "Локация не указана"}</span>
+                <span>{place.address || "Локация не указана"}</span>
             </div>
 
             <div className="account-book-place__actions">
@@ -115,10 +135,7 @@ export function AccountPlaceCard({ place, onDelete, deleteLabel = "Удалит�
                     Редактировать
                 </Link>
 
-                <Link
-                    className="account-book-place__action"
-                    to={`/map?category=${place.categorySlug}&place=${place.id}`}
-                >
+                <Link className="account-book-place__action" to={mapUrl}>
                     На карте
                 </Link>
 

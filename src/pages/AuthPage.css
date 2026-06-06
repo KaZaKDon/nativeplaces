@@ -14,38 +14,46 @@
 
 .auth-page__map {
     position: absolute;
-    inset: -24px;
+    inset: 0;
+
+    background-image: url("/images/auth/rostov-map-bg.webp");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+
+    filter: none;
+    transform: none;
+}
+
+.auth-page__map::after {
+    content: "";
+    position: absolute;
+    inset: 0;
 
     background:
         radial-gradient(
-            circle at 58% 46%,
-            rgba(20, 184, 166, 0.18),
-            transparent 18%
+            circle at 50% 48%,
+            rgba(214, 167, 95, 0.08),
+            transparent 28%
         ),
-        radial-gradient(
-            circle at 54% 48%,
-            rgba(214, 167, 95, 0.18),
-            transparent 10%
+        linear-gradient(
+            135deg,
+            rgba(7, 11, 18, 0.62),
+            rgba(15, 23, 42, 0.38)
         ),
-        url("/images/auth/rostov-map-bg.jpg");
-
-    background-size: cover;
-    background-position: center;
-
-    filter: blur(3px);
-    transform: scale(1.05);
+        linear-gradient(
+            to right,
+            rgba(7, 11, 18, 0.55),
+            rgba(7, 11, 18, 0.18),
+            rgba(7, 11, 18, 0.45)
+        );
 }
 
 .auth-page__overlay {
     position: absolute;
     inset: 0;
 
-    background:
-        linear-gradient(
-            135deg,
-            rgba(7, 11, 18, 0.82),
-            rgba(15, 23, 42, 0.55)
-        );
+    background: rgba(7, 11, 18, 0.18);
 }
 
 .auth-card {
@@ -58,12 +66,12 @@
 
     border-radius: 28px;
 
-    border: 1px solid var(--border-soft);
+    border: 1px solid rgba(255, 255, 255, 0.12);
 
-    background: var(--color-surface);
+    background: rgba(15, 23, 42, 0.88);
 
-    -webkit-backdrop-filter: blur(20px);
-    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
 
     box-shadow: var(--shadow-soft);
 }
@@ -113,7 +121,7 @@
 
     border-radius: 18px;
 
-    background: rgba(255, 255, 255, 0.04);
+    background: rgba(255, 255, 255, 0.05);
 }
 
 .auth-tabs__button {
@@ -173,11 +181,11 @@
     padding: 0 16px;
 
     border-radius: 14px;
-    border: 1px solid var(--border-soft);
+    border: 1px solid rgba(255, 255, 255, 0.14);
 
-    background: rgba(255, 255, 255, 0.04);
+    background: rgba(255, 255, 255, 0.9);
 
-    color: var(--color-text);
+    color: #111827;
 
     font: inherit;
 
@@ -187,7 +195,7 @@
 }
 
 .auth-form__field input::placeholder {
-    color: var(--color-text-soft);
+    color: #64748b;
 }
 
 .auth-form__field input:focus {
@@ -225,7 +233,7 @@
 
     background: transparent;
 
-    color: var(--color-text-soft);
+    color: #64748b;
 
     cursor: pointer;
 
@@ -237,8 +245,8 @@
 }
 
 .auth-form__password-toggle:hover {
-    color: var(--color-text);
-    background: rgba(255, 255, 255, 0.06);
+    color: #111827;
+    background: rgba(15, 23, 42, 0.08);
 }
 
 .auth-form__password-toggle svg {
@@ -300,6 +308,10 @@
 @media (max-width: 640px) {
     .auth-page {
         padding: 16px;
+    }
+
+    .auth-page__map {
+        background-position: 58% center;
     }
 
     .auth-card {
