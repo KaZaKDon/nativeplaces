@@ -12,6 +12,7 @@ import { SubmitPage } from "../pages/SubmitPage";
 import { RequireAuth } from "../shared/auth/RequireAuth";
 import { RoutePage } from "../pages/RoutePage";
 import { SharedRoutePage } from "../pages/SharedRoutePage";
+import { NotFoundPage } from "../pages/NotFound/NotFoundPage";
 
 export const router = createBrowserRouter([
     {
@@ -73,6 +74,10 @@ export const router = createBrowserRouter([
             {
                 path: "routes/share/:token",
                 element: <SharedRoutePage />,
+            },
+            {
+                path: "*",
+                element: <NotFoundPage />,
             },
         ],
     },
