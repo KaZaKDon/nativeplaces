@@ -1,22 +1,27 @@
 .map-page {
-    min-height: 100svh;
+    height: 100svh;
+    overflow: hidden;
     background: var(--color-bg-deep);
     color: var(--color-text);
 }
 
 .map-shell {
-    min-height: 100svh;
+    height: 100svh;
     display: grid;
     grid-template-columns: minmax(0, 2fr) minmax(360px, 1fr);
+    overflow: hidden;
 }
 
 .map-area {
-    min-height: 100svh;
+    height: 100svh;
     position: relative;
+    overflow: hidden;
 }
 
 .map-sidebar-desktop {
-    min-height: 100svh;
+    height: 100svh;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .native-map {
@@ -151,6 +156,10 @@
 }
 
 @media (max-width: 860px) {
+    .map-page {
+        overflow: hidden;
+    }
+
     .map-shell {
         display: block;
     }

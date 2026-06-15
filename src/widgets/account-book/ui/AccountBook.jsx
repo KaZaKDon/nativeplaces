@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../../../shared/auth/useAuth";
 import { favoritesApi } from "../../../shared/api/favoritesApi";
 import { myPlacesApi } from "../../../shared/api/myPlacesApi";
+import { conversationsApi } from "../../../shared/api/conversationsApi";
 import { accountBookTabs } from "../model/accountBookTabs";
 import { AccountArchiveSection } from "./sections/AccountArchiveSection";
 import { AccountFavoritesSection } from "./sections/AccountFavoritesSection";
@@ -39,9 +40,11 @@ export function AccountBook() {
 
     const [places, setPlaces] = useState([]);
     const [favorites, setFavorites] = useState([]);
+    const [conversations, setConversations] = useState([]);
 
     const [placesLoading, setPlacesLoading] = useState(true);
     const [favoritesLoading, setFavoritesLoading] = useState(true);
+    const [messagesLoading, setMessagesLoading] = useState(true);
 
     const profile = useMemo(() => {
         return profileOverride ?? mapUserToProfile(user);
@@ -113,10 +116,46 @@ export function AccountBook() {
         };
     }, []);
 
+    useEffect(() => {
+        let isMounted = true;
+
+        async function loadConversations() {
+            try {
+                const data = await conversationsApi.getConversations();
+
+                if (!isMounted) {
+                    return;
+                }
+
+                setConversations(
+                    Array.isArray(data.conversations)
+                        ? data.conversations
+                        : []
+                );
+            } catch (error) {
+                console.error("Не удалось загрузить диалоги:", error);
+
+                if (isMounted) {
+                    setConversations([]);
+                }
+            } finally {
+                if (isMounted) {
+                    setMessagesLoading(false);
+                }
+            }
+        }
+
+        loadConversations();
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
+
     const stats = {
         places: places.length,
         favorites: favorites.length,
-        messages: 0,
+        messages: conversations.length,
     };
 
     const ActiveSection = sectionComponents[activeTab] || AccountPlacesSection;
@@ -149,8 +188,10 @@ export function AccountBook() {
                     </div>
 
                     <div>
-                        <strong>{stats.messages}</strong>
-                        <span>писем</span>
+                        <strong>
+                            {messagesLoading ? "…" : stats.messages}
+                        </strong>
+                        <span>сообщений</span>
                     </div>
                 </div>
 

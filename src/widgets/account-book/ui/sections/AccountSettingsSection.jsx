@@ -1,16 +1,22 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { profileApi } from "../../../../shared/api/profileApi";
+import { appealsApi } from "../../../../shared/api/appealsApi";
 import { useAuth } from "../../../../shared/auth/useAuth";
-import {
-    deleteSupportRequest,
-    getSupportRequests,
-    saveSupportRequest,
-    supportTypeTitles,
-} from "../../../../shared/storage/supportStorage";
 import { getMediaUrl } from "../../../../shared/api/mediaUrl";
 
 import "./AccountSettingsSection.css";
+
+const appealTypeTitles = {
+    support: "Поддержка",
+    idea: "Предложение",
+};
+
+const appealStatusTitles = {
+    new: "Новое",
+    in_work: "В работе",
+    closed: "Рассмотрено",
+};
 
 function mapUserToProfile(user) {
     return {
@@ -20,6 +26,26 @@ function mapUserToProfile(user) {
         phone: user?.phone || "",
         telegram: user?.telegram || "",
     };
+}
+
+function formatDate(value) {
+    if (!value) {
+        return "";
+    }
+
+    const date = new Date(value.replace(" ", "T"));
+
+    if (Number.isNaN(date.getTime())) {
+        return value;
+    }
+
+    return date.toLocaleString("ru-RU", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    });
 }
 
 export function AccountSettingsSection({ onProfileUpdate }) {
@@ -35,9 +61,50 @@ export function AccountSettingsSection({ onProfileUpdate }) {
     const [contactValue, setContactValue] = useState("");
     const [contactText, setContactText] = useState("");
     const [contactStatus, setContactStatus] = useState("");
+    const [contactSending, setContactSending] = useState(false);
 
-    const [requests, setRequests] = useState(() => getSupportRequests());
+    const [requests, setRequests] = useState([]);
+    const [requestsLoading, setRequestsLoading] = useState(false);
+    const [requestsError, setRequestsError] = useState("");
     const [activeRequest, setActiveRequest] = useState(null);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        async function loadAppeals() {
+            setRequestsLoading(true);
+            setRequestsError("");
+
+            try {
+                const data = await appealsApi.getMyAppeals();
+
+                if (!isMounted) {
+                    return;
+                }
+
+                setRequests(data.appeals);
+            } catch (error) {
+                console.error("Не удалось загрузить обращения:", error);
+
+                if (isMounted) {
+                    setRequests([]);
+                    setRequestsError(
+                        error.message || "Не удалось загрузить обращения."
+                    );
+                }
+            } finally {
+                if (isMounted) {
+                    setRequestsLoading(false);
+                }
+            }
+        }
+
+        loadAppeals();
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     function handleProfileChange(event) {
         const { name, value } = event.target;
@@ -52,8 +119,6 @@ export function AccountSettingsSection({ onProfileUpdate }) {
 
     async function handleAvatarChange(event) {
         const file = event.target.files?.[0];
-
-        console.log("AVATAR_STEP_1 file:", file);
 
         if (!file) {
             setProfileStatus("Файл не выбран.");
@@ -71,11 +136,7 @@ export function AccountSettingsSection({ onProfileUpdate }) {
         setProfileStatus("Загружаем фото...");
 
         try {
-            console.log("AVATAR_STEP_2 before upload");
-
             const data = await profileApi.uploadAvatar(file);
-
-            console.log("AVATAR_STEP_3 response:", data);
 
             const updatedProfile = {
                 ...profile,
@@ -83,9 +144,11 @@ export function AccountSettingsSection({ onProfileUpdate }) {
             };
 
             setProfile(updatedProfile);
+
             updateUser({
                 avatar: data.avatar,
             });
+
             onProfileUpdate?.(updatedProfile);
 
             setProfileStatus("Фото профиля обновлено.");
@@ -120,12 +183,14 @@ export function AccountSettingsSection({ onProfileUpdate }) {
             };
 
             setProfile(updatedProfile);
+
             updateUser({
                 first_name: data.profile.first_name,
                 profile_status: data.profile.profile_status,
                 phone: data.profile.phone,
                 telegram: data.profile.telegram,
             });
+
             onProfileUpdate?.(updatedProfile);
 
             setProfileStatus("Профиль сохранён.");
@@ -134,7 +199,7 @@ export function AccountSettingsSection({ onProfileUpdate }) {
         }
     }
 
-    function handleSendContact(event) {
+    async function handleSendContact(event) {
         event.preventDefault();
 
         const text = contactText.trim();
@@ -144,27 +209,28 @@ export function AccountSettingsSection({ onProfileUpdate }) {
             return;
         }
 
-        saveSupportRequest({
-            type: contactType,
-            contact: contactValue.trim(),
-            text,
-        });
+        setContactSending(true);
+        setContactStatus("");
 
-        setRequests(getSupportRequests());
-        setContactText("");
-        setContactValue("");
-        setContactStatus("Обращение сохранено. Мы разберёмся.");
-    }
+        try {
+            await appealsApi.createAppeal({
+                type: contactType,
+                contact: contactValue.trim(),
+                message: text,
+            });
 
-    function handleDeleteRequest(requestId) {
-        const isConfirmed = window.confirm("Удалить это обращение?");
+            const data = await appealsApi.getMyAppeals();
 
-        if (!isConfirmed) {
-            return;
+            setRequests(data.appeals);
+            setContactText("");
+            setContactValue("");
+            setContactStatus("Обращение отправлено.");
+        } catch (error) {
+            console.error("Не удалось отправить обращение:", error);
+            setContactStatus(error.message || "Не удалось отправить обращение.");
+        } finally {
+            setContactSending(false);
         }
-
-        const updatedRequests = deleteSupportRequest(requestId);
-        setRequests(updatedRequests);
     }
 
     if (view === "requests") {
@@ -180,27 +246,43 @@ export function AccountSettingsSection({ onProfileUpdate }) {
                     ← Назад к настройкам
                 </button>
 
-                {requests.length === 0 ? (
+                {requestsLoading ? (
+                    <div className="account-book-empty">
+                        <h2>Загружаем обращения</h2>
+                        <p>Получаем ваши обращения из базы.</p>
+                    </div>
+                ) : requestsError ? (
+                    <div className="account-book-empty">
+                        <h2>Не удалось загрузить обращения</h2>
+                        <p>{requestsError}</p>
+                    </div>
+                ) : requests.length === 0 ? (
                     <div className="account-book-empty">
                         <h2>Обращений пока нет</h2>
-
                         <p>
-                            Здесь будут ваши жалобы, предложения и обращения в поддержку.
+                            Здесь будут ваши вопросы в поддержку и предложения по проекту.
                         </p>
                     </div>
                 ) : (
                     <div className="account-support-list">
                         {requests.map((request) => (
-                            <article className="account-support-item" key={request.id}>
+                            <article
+                                className="account-support-item"
+                                key={request.id}
+                            >
                                 <div>
                                     <strong>
-                                        {supportTypeTitles[request.type] ?? "Обращение"}
+                                        {appealTypeTitles[request.type] ??
+                                            "Обращение"}
                                     </strong>
 
-                                    {request.status === "new" && (
-                                        <span className="account-support-item__badge">
-                                            Новое
-                                        </span>
+                                    <span className="account-support-item__badge">
+                                        {appealStatusTitles[request.status] ??
+                                            request.status}
+                                    </span>
+
+                                    {request.createdAt && (
+                                        <p>{formatDate(request.createdAt)}</p>
                                     )}
                                 </div>
 
@@ -212,14 +294,6 @@ export function AccountSettingsSection({ onProfileUpdate }) {
                                     >
                                         Посмотреть
                                     </button>
-
-                                    <button
-                                        className="account-book-place__action account-book-place__action--danger"
-                                        type="button"
-                                        onClick={() => handleDeleteRequest(request.id)}
-                                    >
-                                        Удалить
-                                    </button>
                                 </div>
                             </article>
                         ))}
@@ -227,7 +301,11 @@ export function AccountSettingsSection({ onProfileUpdate }) {
                 )}
 
                 {activeRequest && (
-                    <div className="account-contact-modal" role="dialog" aria-modal="true">
+                    <div
+                        className="account-contact-modal"
+                        role="dialog"
+                        aria-modal="true"
+                    >
                         <div className="account-contact-modal__card">
                             <button
                                 className="account-contact-modal__close"
@@ -238,15 +316,44 @@ export function AccountSettingsSection({ onProfileUpdate }) {
                                 ×
                             </button>
 
-                            <h2>{supportTypeTitles[activeRequest.type] ?? "Обращение"}</h2>
+                            <h2>
+                                {appealTypeTitles[activeRequest.type] ??
+                                    "Обращение"}
+                            </h2>
+
+                            <p>
+                                <strong>Статус:</strong>{" "}
+                                {appealStatusTitles[activeRequest.status] ??
+                                    activeRequest.status}
+                            </p>
 
                             {activeRequest.contact && (
                                 <p>
-                                    <strong>Контакт:</strong> {activeRequest.contact}
+                                    <strong>Контакт:</strong>{" "}
+                                    {activeRequest.contact}
+                                </p>
+                            )}
+
+                            {activeRequest.createdAt && (
+                                <p>
+                                    <strong>Дата:</strong>{" "}
+                                    {formatDate(activeRequest.createdAt)}
                                 </p>
                             )}
 
                             <p>{activeRequest.text}</p>
+
+                            {activeRequest.adminResponse ? (
+                                <div className="account-support-response">
+                                    <strong>Ответ администрации</strong>
+                                    <p>{activeRequest.adminResponse}</p>
+                                </div>
+                            ) : (
+                                <div className="account-support-response">
+                                    <strong>Ответ администрации</strong>
+                                    <p>Пока ответа нет.</p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
@@ -280,6 +387,26 @@ export function AccountSettingsSection({ onProfileUpdate }) {
                 </label>
 
                 <label>
+                    <span>Телефон</span>
+                    <input
+                        type="text"
+                        name="phone"
+                        value={profile.phone}
+                        onChange={handleProfileChange}
+                    />
+                </label>
+
+                <label>
+                    <span>Telegram</span>
+                    <input
+                        type="text"
+                        name="telegram"
+                        value={profile.telegram}
+                        onChange={handleProfileChange}
+                    />
+                </label>
+
+                <label>
                     <span>Фото профиля</span>
                     <input
                         type="file"
@@ -295,24 +422,32 @@ export function AccountSettingsSection({ onProfileUpdate }) {
                 </button>
             </form>
 
-            <button
-                className="account-book-section__button account-settings-contact"
-                type="button"
-                onClick={() => setContactOpen(true)}
-            >
-                Связаться
-            </button>
+            <div className="account-settings-actions">
 
-            <button
-                className="account-book-section__button account-settings-contact"
-                type="button"
-                onClick={() => setView("requests")}
-            >
-                Обращения
-            </button>
+                <button
+                    className="account-book-section__button account-settings-contact"
+                    type="button"
+                    onClick={() => setContactOpen(true)}
+                >
+                    Связаться
+                </button>
+
+                <button
+                    className="account-book-section__button account-settings-contact"
+                    type="button"
+                    onClick={() => setView("requests")}
+                >
+                    Обращения
+                </button>
+
+            </div>
 
             {contactOpen && (
-                <div className="account-contact-modal" role="dialog" aria-modal="true">
+                <div
+                    className="account-contact-modal"
+                    role="dialog"
+                    aria-modal="true"
+                >
                     <div className="account-contact-modal__card">
                         <button
                             className="account-contact-modal__close"
@@ -328,44 +463,51 @@ export function AccountSettingsSection({ onProfileUpdate }) {
                         <div className="account-contact-modal__tabs">
                             <button
                                 type="button"
-                                className={contactType === "support" ? "is-active" : ""}
-                                onClick={() => setContactType("support")}
+                                className={
+                                    contactType === "support" ? "is-active" : ""
+                                }
+                                onClick={() => {
+                                    setContactType("support");
+                                    setContactStatus("");
+                                }}
                             >
                                 Поддержка
                             </button>
 
                             <button
                                 type="button"
-                                className={contactType === "idea" ? "is-active" : ""}
-                                onClick={() => setContactType("idea")}
+                                className={
+                                    contactType === "idea" ? "is-active" : ""
+                                }
+                                onClick={() => {
+                                    setContactType("idea");
+                                    setContactStatus("");
+                                }}
                             >
                                 Предложение
                             </button>
-
-                            <button
-                                type="button"
-                                className={contactType === "report" ? "is-active" : ""}
-                                onClick={() => setContactType("report")}
-                            >
-                                Жалоба
-                            </button>
                         </div>
 
-                        <form className="account-contact-form" onSubmit={handleSendContact}>
+                        <form
+                            className="account-contact-form"
+                            onSubmit={handleSendContact}
+                        >
                             <input
                                 type="text"
                                 value={contactValue}
                                 placeholder="Email или Telegram для ответа"
-                                onChange={(event) => setContactValue(event.target.value)}
+                                onChange={(event) =>
+                                    setContactValue(event.target.value)
+                                }
                             />
 
                             <textarea
                                 rows="5"
                                 value={contactText}
                                 placeholder={
-                                    contactType === "report"
-                                        ? "На кого или на что жалоба, и что произошло?"
-                                        : "Напишите сообщение..."
+                                    contactType === "idea"
+                                        ? "Опишите предложение по проекту..."
+                                        : "Напишите сообщение в поддержку..."
                                 }
                                 onChange={(event) => {
                                     setContactText(event.target.value);
@@ -375,8 +517,12 @@ export function AccountSettingsSection({ onProfileUpdate }) {
 
                             {contactStatus && <p>{contactStatus}</p>}
 
-                            <button className="account-book-section__button" type="submit">
-                                Отправить
+                            <button
+                                className="account-book-section__button"
+                                type="submit"
+                                disabled={contactSending}
+                            >
+                                {contactSending ? "Отправляем..." : "Отправить"}
                             </button>
                         </form>
                     </div>

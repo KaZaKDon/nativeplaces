@@ -5,8 +5,11 @@ import { placesApi } from "../shared/api/placesApi";
 import { createPlaceMapUrl } from "../entities/place/lib/createPlaceMapUrl";
 import { createPlaceRouteUrl } from "../entities/place/lib/createPlaceRouteUrl";
 import { getPlaceImages } from "../entities/place/lib/getPlaceImages";
-import { saveMessage } from "../shared/storage/messagesStorage";
+import { conversationsApi } from "../shared/api/conversationsApi";
 import { favoritesApi } from "../shared/api/favoritesApi";
+import { reportsApi, REPORT_TYPES } from "../shared/api/reportsApi";
+import { reviewsApi } from "../shared/api/reviewsApi";
+import { useAuth } from "../shared/auth/useAuth";
 import { AddToRouteModal } from "../features/routes/AddToRouteModal";
 
 import "./PlacePage.css";
@@ -18,6 +21,10 @@ function formatAttributeValue(attribute) {
 
     if (!value) {
         return "";
+    }
+
+    if (attribute.fieldType === "boolean") {
+        return value === "1" || value === "true" ? "Да" : "Нет";
     }
 
     if (attribute.code === "price") {
@@ -45,6 +52,24 @@ function formatAttributeValue(attribute) {
     return value;
 }
 
+function formatDate(value) {
+    if (!value) {
+        return "";
+    }
+
+    const date = new Date(value.replace(" ", "T"));
+
+    if (Number.isNaN(date.getTime())) {
+        return value;
+    }
+
+    return date.toLocaleDateString("ru-RU", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+    });
+}
+
 function getPrimaryAttributes(place) {
     return (place.attributes ?? []).filter((attribute) =>
         PRIMARY_ATTRIBUTE_CODES.includes(attribute.code)
@@ -59,6 +84,7 @@ function getSecondaryAttributes(place) {
 
 export function PlacePage() {
     const { slug } = useParams();
+    const { isAuth } = useAuth();
 
     const [place, setPlace] = useState(null);
     const [placeLoading, setPlaceLoading] = useState(true);
@@ -66,18 +92,51 @@ export function PlacePage() {
 
     const [activeImageIndex, setActiveImageIndex] = useState(0);
     const [viewerOpen, setViewerOpen] = useState(false);
+
     const [messageModalOpen, setMessageModalOpen] = useState(false);
     const [messageText, setMessageText] = useState("");
     const [messageStatus, setMessageStatus] = useState("");
+    const [messageSending, setMessageSending] = useState(false);
+
     const [favorite, setFavorite] = useState(false);
+    const [favoriteLoading, setFavoriteLoading] = useState(false);
+
+    const [reviews, setReviews] = useState([]);
+    const [reviewsLoading, setReviewsLoading] = useState(false);
+    const [reviewText, setReviewText] = useState("");
+    const [reviewStatus, setReviewStatus] = useState("");
+    const [reviewSending, setReviewSending] = useState(false);
+
+    const [reportModalOpen, setReportModalOpen] = useState(false);
+    const [reportType, setReportType] = useState(REPORT_TYPES[0]?.value ?? "");
+    const [reportText, setReportText] = useState("");
+    const [reportStatus, setReportStatus] = useState("");
+    const [reportSending, setReportSending] = useState(false);
+
     const [routeModalOpen, setRouteModalOpen] = useState(false);
 
     const images = place ? getPlaceImages(place) : [];
+
+    const loadReviews = useCallback(async (placeId) => {
+        setReviewsLoading(true);
+
+        try {
+            const data = await reviewsApi.getReviews(placeId);
+            setReviews(data.reviews);
+        } catch (error) {
+            console.error("Не удалось загрузить отзывы:", error);
+            setReviews([]);
+        } finally {
+            setReviewsLoading(false);
+        }
+    }, []);
 
     useEffect(() => {
         let isMounted = true;
 
         async function loadPlace() {
+            setPlaceLoading(true);
+
             try {
                 const data = await placesApi.getPlaceBySlug(slug);
 
@@ -92,20 +151,25 @@ export function PlacePage() {
                 }
 
                 setPlace(data.place);
+                setPlaceError("");
+                setActiveImageIndex(0);
+                loadReviews(data.place.id);
 
                 try {
                     const favoriteData = await favoritesApi.checkFavorite(
                         data.place.id
                     );
 
-                    setFavorite(Boolean(favoriteData.is_favorite));
+                    if (isMounted) {
+                        setFavorite(Boolean(favoriteData.is_favorite));
+                    }
                 } catch (error) {
                     console.error("Не удалось проверить избранное:", error);
-                    setFavorite(false);
-                }
 
-                setPlaceError("");
-                setActiveImageIndex(0);
+                    if (isMounted) {
+                        setFavorite(false);
+                    }
+                }
             } catch (error) {
                 console.error("Не удалось загрузить объект:", error);
 
@@ -127,7 +191,7 @@ export function PlacePage() {
         return () => {
             isMounted = false;
         };
-    }, [slug]);
+    }, [slug, loadReviews]);
 
     const showPreviousImage = useCallback(() => {
         setActiveImageIndex((currentIndex) => {
@@ -182,24 +246,128 @@ export function PlacePage() {
         setViewerOpen(true);
     }
 
+    function requireLoginMessage(action) {
+        window.alert(`Чтобы ${action}, войдите в аккаунт.`);
+    }
+
     async function handleToggleFavorite() {
-        if (!place) {
+        if (!place || favoriteLoading) {
             return;
         }
 
+        if (!isAuth) {
+            requireLoginMessage("добавить объект в избранное");
+            return;
+        }
+
+        setFavoriteLoading(true);
+
         try {
             const result = await favoritesApi.toggleFavorite(place.id);
-
             setFavorite(Boolean(result.is_favorite));
         } catch (error) {
             console.error(error);
-
             window.alert(error.message || "Не удалось изменить избранное.");
+        } finally {
+            setFavoriteLoading(false);
         }
     }
 
-    function handleSendMessage() {
-        if (!place) {
+    async function handleSendReview(event) {
+        event.preventDefault();
+
+        if (!place || reviewSending) {
+            return;
+        }
+
+        if (!isAuth) {
+            setReviewStatus("Чтобы оставить отзыв, войдите в аккаунт.");
+            return;
+        }
+
+        const text = reviewText.trim();
+
+        if (text.length < 10) {
+            setReviewStatus("Отзыв должен быть не короче 10 символов.");
+            return;
+        }
+
+        setReviewSending(true);
+        setReviewStatus("");
+
+        try {
+            const result = await reviewsApi.createReview({
+                placeId: place.id,
+                text,
+            });
+
+            setReviewText("");
+            setReviewStatus(result.message || "Отзыв опубликован.");
+            loadReviews(place.id);
+        } catch (error) {
+            console.error(error);
+            setReviewStatus(error.message || "Не удалось отправить отзыв.");
+        } finally {
+            setReviewSending(false);
+        }
+    }
+
+    async function handleSendReport(event) {
+        event.preventDefault();
+
+        if (!place || reportSending) {
+            return;
+        }
+
+        if (!isAuth) {
+            setReportStatus("Чтобы отправить жалобу, войдите в аккаунт.");
+            return;
+        }
+
+        const text = reportText.trim();
+
+        if (!reportType) {
+            setReportStatus("Выберите тип жалобы.");
+            return;
+        }
+
+        if (!text) {
+            setReportStatus("Опишите причину жалобы.");
+            return;
+        }
+
+        setReportSending(true);
+        setReportStatus("");
+
+        try {
+            const result = await reportsApi.createReport({
+                placeId: place.id,
+                reportType,
+                message: text,
+            });
+
+            setReportText("");
+            setReportStatus(result.message || "Жалоба отправлена.");
+
+            setTimeout(() => {
+                setReportModalOpen(false);
+                setReportStatus("");
+            }, 900);
+        } catch (error) {
+            console.error(error);
+            setReportStatus(error.message || "Не удалось отправить жалобу.");
+        } finally {
+            setReportSending(false);
+        }
+    }
+
+    async function handleSendMessage() {
+        if (!place || messageSending) {
+            return;
+        }
+
+        if (!isAuth) {
+            setMessageStatus("Чтобы написать автору, войдите в аккаунт.");
             return;
         }
 
@@ -210,22 +378,37 @@ export function PlacePage() {
             return;
         }
 
-        saveMessage({
-            placeId: place.id,
-            placeSlug: place.slug,
-            placeTitle: place.title,
-            placeImage: place.image,
-            placeCategoryTitle: place.categoryTitle,
-            text,
-        });
+        setMessageSending(true);
+        setMessageStatus("Отправляем сообщение...");
 
-        setMessageText("");
-        setMessageStatus("Сообщение сохранено в кабинете.");
+        try {
+            const conversation = await conversationsApi.startConversation(
+                place.id
+            );
 
-        setTimeout(() => {
-            setMessageModalOpen(false);
-            setMessageStatus("");
-        }, 1000);
+            if (!conversation.conversationId) {
+                setMessageStatus("Не удалось создать диалог.");
+                return;
+            }
+
+            await conversationsApi.sendMessage({
+                conversationId: conversation.conversationId,
+                text,
+            });
+
+            setMessageText("");
+            setMessageStatus("Сообщение отправлено автору.");
+
+            setTimeout(() => {
+                setMessageModalOpen(false);
+                setMessageStatus("");
+            }, 1000);
+        } catch (error) {
+            console.error(error);
+            setMessageStatus(error.message || "Не удалось отправить сообщение.");
+        } finally {
+            setMessageSending(false);
+        }
     }
 
     if (placeLoading) {
@@ -443,8 +626,17 @@ export function PlacePage() {
                             }
                             type="button"
                             onClick={handleToggleFavorite}
+                            disabled={favoriteLoading}
                         >
-                            {favorite ? "В избранном" : "В избранное"}
+                            {favorite ? "♥ В избранном" : "♡ В избранное"}
+                        </button>
+
+                        <button
+                            className="place-page__button place-page__button--complaint"
+                            type="button"
+                            onClick={() => setReportModalOpen(true)}
+                        >
+                            Пожаловаться
                         </button>
 
                         <Link
@@ -483,6 +675,82 @@ export function PlacePage() {
                         </button>
                     </div>
                 </div>
+            </section>
+
+            <section className="place-reviews" id="reviews">
+                <div className="place-reviews__header">
+                    <div>
+                        <p className="place-page__eyebrow">Отзывы</p>
+                        <h2>Отзывы об объекте</h2>
+                    </div>
+                    <span>{reviews.length}</span>
+                </div>
+
+                <form className="place-review-form" onSubmit={handleSendReview}>
+                    <textarea
+                        rows="4"
+                        value={reviewText}
+                        placeholder="Расскажите, что знаете об этом месте."
+                        onChange={(event) => {
+                            setReviewText(event.target.value);
+                            setReviewStatus("");
+                        }}
+                    />
+
+                    <div className="place-review-form__footer">
+                        {reviewStatus && <p>{reviewStatus}</p>}
+
+                        <button
+                            className="place-page__button"
+                            type="submit"
+                            disabled={reviewSending}
+                        >
+                            {reviewSending ? "Отправляем..." : "Оставить отзыв"}
+                        </button>
+                    </div>
+                </form>
+
+                {reviewsLoading ? (
+                    <p className="place-reviews__empty">Загружаем отзывы...</p>
+                ) : reviews.length > 0 ? (
+                    <div className="place-reviews__list">
+                        {reviews.map((review) => (
+                            <article
+                                className="place-review-card"
+                                key={review.id}
+                            >
+                                <div className="place-review-card__avatar">
+                                    {review.userAvatar ? (
+                                        <img
+                                            src={review.userAvatar}
+                                            alt={review.userName}
+                                        />
+                                    ) : (
+                                        review.userName
+                                            .slice(0, 1)
+                                            .toUpperCase()
+                                    )}
+                                </div>
+
+                                <div>
+                                    <div className="place-review-card__top">
+                                        <strong>{review.userName}</strong>
+                                        {review.createdAt && (
+                                            <span>
+                                                {formatDate(review.createdAt)}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <p>{review.text}</p>
+                                </div>
+                            </article>
+                        ))}
+                    </div>
+                ) : (
+                    <p className="place-reviews__empty">
+                        Отзывов пока нет. Можно быть первым.
+                    </p>
+                )}
             </section>
 
             {viewerOpen && images.length > 0 && (
@@ -589,10 +857,83 @@ export function PlacePage() {
                             className="place-page__button message-modal__submit"
                             type="button"
                             onClick={handleSendMessage}
+                            disabled={messageSending}
                         >
-                            Отправить
+                            {messageSending ? "Отправляем..." : "Отправить"}
                         </button>
                     </div>
+                </div>
+            )}
+
+            {reportModalOpen && (
+                <div className="message-modal" role="dialog" aria-modal="true">
+                    <form
+                        className="message-modal__card"
+                        onSubmit={handleSendReport}
+                    >
+                        <button
+                            className="message-modal__close"
+                            type="button"
+                            onClick={() => setReportModalOpen(false)}
+                            aria-label="Закрыть окно"
+                        >
+                            ×
+                        </button>
+
+                        <p className="place-page__eyebrow">Жалоба</p>
+                        <h2>Сообщить о проблеме</h2>
+
+                        <div className="report-form">
+                            <label>
+                                <span>Тип жалобы</span>
+                                <select
+                                    value={reportType}
+                                    onChange={(event) => {
+                                        setReportType(event.target.value);
+                                        setReportStatus("");
+                                    }}
+                                >
+                                    {REPORT_TYPES.map((type) => (
+                                        <option
+                                            key={type.value}
+                                            value={type.value}
+                                        >
+                                            {type.title}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+
+                            <label>
+                                <span>Комментарий</span>
+                                <textarea
+                                    rows="5"
+                                    value={reportText}
+                                    placeholder="Опишите, что не так с объявлением."
+                                    onChange={(event) => {
+                                        setReportText(event.target.value);
+                                        setReportStatus("");
+                                    }}
+                                />
+                            </label>
+
+                            {reportStatus && (
+                                <p className="message-modal__status">
+                                    {reportStatus}
+                                </p>
+                            )}
+                        </div>
+
+                        <button
+                            className="place-page__button message-modal__submit"
+                            type="submit"
+                            disabled={reportSending}
+                        >
+                            {reportSending
+                                ? "Отправляем..."
+                                : "Отправить жалобу"}
+                        </button>
+                    </form>
                 </div>
             )}
 
