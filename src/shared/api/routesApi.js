@@ -52,6 +52,9 @@ function mapRouteFromApi(route, places = []) {
         description: route.description || "",
         isPublic: Boolean(Number(route.is_public)),
         shareToken: route.share_token || "",
+        status: route.status || "active",
+        completedAt: route.completed_at || "",
+        archivedAt: route.archived_at || "",
         placesCount: Number(route.places_count ?? places.length ?? 0),
         places: places.map(mapRoutePlaceFromApi),
         createdAt: route.created_at || "",
@@ -62,6 +65,16 @@ function mapRouteFromApi(route, places = []) {
 export const routesApi = {
     async getRoutes() {
         const data = await apiClient.get("/routes/index.php");
+
+        return {
+            routes: Array.isArray(data.routes) ?
+                data.routes.map((route) => mapRouteFromApi(route)) :
+                [],
+        };
+    },
+
+    async getArchivedRoutes() {
+        const data = await apiClient.get("/routes/archive-index.php");
 
         return {
             routes: Array.isArray(data.routes) ?
@@ -112,6 +125,24 @@ export const routesApi = {
         });
     },
 
+    async archiveRoute(routeId) {
+        return apiClient.post("/routes/archive.php", {
+            route_id: routeId,
+        });
+    },
+
+    async restoreRoute(routeId) {
+        return apiClient.post("/routes/restore.php", {
+            route_id: routeId,
+        });
+    },
+
+    async completeRoute(routeId) {
+        return apiClient.post("/routes/complete.php", {
+            route_id: routeId,
+        });
+    },
+
     async deleteRoute(routeId) {
         return apiClient.post("/routes/delete.php", {
             route_id: routeId,
@@ -145,6 +176,7 @@ export const routesApi = {
             items: routePlaceIds,
         });
     },
+
     async getSharedRoute(token) {
         const data = await apiClient.get("/routes/share.php", {
             token,

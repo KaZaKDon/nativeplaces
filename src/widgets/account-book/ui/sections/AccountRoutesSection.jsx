@@ -64,7 +64,7 @@ export function AccountRoutesSection() {
 
     async function handleArchiveRoute(routeId) {
         const isConfirmed = window.confirm(
-            "Удалить маршрут?"
+            "Переместить маршрут в архив?"
         );
 
         if (!isConfirmed) {
@@ -72,7 +72,7 @@ export function AccountRoutesSection() {
         }
 
         try {
-            await routesApi.deleteRoute(routeId);
+            await routesApi.archiveRoute(routeId);
 
             setRoutes((currentRoutes) =>
                 currentRoutes.filter(
@@ -84,7 +84,7 @@ export function AccountRoutesSection() {
             console.error(error);
 
             window.alert(
-                error.message || "Не удалось удалить маршрут."
+                error.message || "Не удалось переместить маршрут в архив."
             );
         }
     }

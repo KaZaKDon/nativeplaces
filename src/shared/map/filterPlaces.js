@@ -1,4 +1,4 @@
-import { MAP_CATEGORY_ALL } from "../../data/map/categories";
+import { MAP_CATEGORY_ALL } from "../../shared/config/categoryConfig";
 import { buildPlaceSearchText } from "./buildPlaceSearchText";
 import { normalizeSearchText } from "../search/normalizeSearchText";
 

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
-import { MAP_CATEGORY_ALL } from "../../data/map/categories";
+import { MAP_CATEGORY_ALL } from "../../shared/config/categoryConfig";
 import { MAP_SHEET_STATES, MAP_URL_PARAMS } from "./mapStateConstants";
 import {
     getPlaceIdFromParams,

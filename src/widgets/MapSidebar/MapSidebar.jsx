@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { mapCategories } from "../../data/map/categories";
+import { mapCategories } from "../../shared/config/categoryConfig";
 
 import "./MapSidebar.css";
 

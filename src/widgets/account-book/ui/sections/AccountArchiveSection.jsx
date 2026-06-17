@@ -1,11 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { myPlacesApi } from "../../../../shared/api/myPlacesApi";
-import {
-    deleteRoute,
-    getArchivedRoutes,
-    restoreRoute,
-} from "../../../../shared/storage/routesStorage";
+import { routesApi } from "../../../../shared/api/routesApi";
 import { AccountBookPager } from "../components/AccountBookPager";
 import { AccountPlaceCard } from "../components/AccountPlaceCard";
 import { AccountRouteCard } from "../components/AccountRouteCard";
@@ -13,10 +9,55 @@ import { AccountRouteCard } from "../components/AccountRouteCard";
 export function AccountArchiveSection() {
     const [archiveView, setArchiveView] = useState("routes");
 
-    const [routes, setRoutes] = useState(() => getArchivedRoutes());
+    const [routes, setRoutes] = useState([]);
+    const [routesLoading, setRoutesLoading] = useState(false);
+    const [routesError, setRoutesError] = useState("");
+
     const [places, setPlaces] = useState([]);
     const [placesLoading, setPlacesLoading] = useState(false);
     const [placesError, setPlacesError] = useState("");
+
+    useEffect(() => {
+        if (archiveView !== "routes") {
+            return;
+        }
+
+        let isMounted = true;
+
+        async function loadArchivedRoutes() {
+            setRoutesLoading(true);
+            setRoutesError("");
+
+            try {
+                const data = await routesApi.getArchivedRoutes();
+
+                if (!isMounted) {
+                    return;
+                }
+
+                setRoutes(data.routes);
+            } catch (error) {
+                console.error("Не удалось загрузить архив маршрутов:", error);
+
+                if (isMounted) {
+                    setRoutes([]);
+                    setRoutesError(
+                        error.message || "Не удалось загрузить архив маршрутов."
+                    );
+                }
+            } finally {
+                if (isMounted) {
+                    setRoutesLoading(false);
+                }
+            }
+        }
+
+        loadArchivedRoutes();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [archiveView]);
 
     useEffect(() => {
         if (archiveView !== "places") {
@@ -62,20 +103,48 @@ export function AccountArchiveSection() {
         };
     }, [archiveView]);
 
-    function handleDeleteRoute(routeId) {
-        const isConfirmed = window.confirm("Удалить маршрут из архива?");
+    async function handleDeleteRoute(routeId) {
+        const isConfirmed = window.confirm("Удалить маршрут из архива навсегда?");
 
         if (!isConfirmed) {
             return;
         }
 
-        deleteRoute(routeId);
-        setRoutes(getArchivedRoutes());
+        try {
+            await routesApi.deleteRoute(routeId);
+
+            setRoutes((currentRoutes) =>
+                currentRoutes.filter(
+                    (route) =>
+                        String(route.id) !== String(routeId)
+                )
+            );
+        } catch (error) {
+            console.error(error);
+
+            window.alert(
+                error.message || "Не удалось удалить маршрут из архива."
+            );
+        }
     }
 
-    function handleRestoreRoute(routeId) {
-        restoreRoute(routeId);
-        setRoutes(getArchivedRoutes());
+    async function handleRestoreRoute(routeId) {
+        try {
+            await routesApi.restoreRoute(routeId);
+
+            setRoutes((currentRoutes) =>
+                currentRoutes.filter(
+                    (route) =>
+                        String(route.id) !== String(routeId)
+                )
+            );
+        } catch (error) {
+            console.error(error);
+
+            window.alert(
+                error.message || "Не удалось восстановить маршрут."
+            );
+        }
     }
 
     function handleSelectRoutesArchive() {
@@ -110,7 +179,11 @@ export function AccountArchiveSection() {
 
             {archiveView === "routes" && (
                 <>
-                    {routes.length === 0 ? (
+                    {routesLoading && <p>Загружаем архив маршрутов...</p>}
+
+                    {routesError && <p>{routesError}</p>}
+
+                    {!routesLoading && !routesError && routes.length === 0 ? (
                         <div className="account-book-empty">
                             <h2>Архив маршрутов пуст</h2>
 
@@ -120,29 +193,32 @@ export function AccountArchiveSection() {
                             </p>
                         </div>
                     ) : (
-                        <div className="account-book-section__body">
-                            <AccountBookPager items={routes}>
-                                {(route) => (
-                                    <div className="account-archive-route">
-                                        <AccountRouteCard
-                                            route={route}
-                                            archiveLabel="Восстановить"
-                                            onArchive={handleRestoreRoute}
-                                        />
+                        !routesLoading &&
+                        !routesError && (
+                            <div className="account-book-section__body">
+                                <AccountBookPager items={routes}>
+                                    {(route) => (
+                                        <div className="account-archive-route">
+                                            <AccountRouteCard
+                                                route={route}
+                                                archiveLabel="Восстановить"
+                                                onArchive={handleRestoreRoute}
+                                            />
 
-                                        <div className="account-archive-route__actions">
-                                            <button
-                                                className="account-book-place__action account-book-place__action--danger"
-                                                type="button"
-                                                onClick={() => handleDeleteRoute(route.id)}
-                                            >
-                                                Удалить из архива
-                                            </button>
+                                            <div className="account-archive-route__actions">
+                                                <button
+                                                    className="account-book-place__action account-book-place__action--danger"
+                                                    type="button"
+                                                    onClick={() => handleDeleteRoute(route.id)}
+                                                >
+                                                    Удалить из архива
+                                                </button>
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
-                            </AccountBookPager>
-                        </div>
+                                    )}
+                                </AccountBookPager>
+                            </div>
+                        )
                     )}
                 </>
             )}

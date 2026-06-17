@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 
-import { categoryCards } from "../data/map/categoryCards";
+import { categoryCards } from "../shared/config/categoryConfig";
 import { createMapCategorySearchParams } from "../shared/map/categoryUrl";
 
 import "./CategoriesPage.css";

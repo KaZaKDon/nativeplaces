@@ -1,4 +1,4 @@
-import { MAP_CATEGORY_ALL, isKnownMapCategory } from "../../data/map/categories";
+import { MAP_CATEGORY_ALL, isKnownMapCategory } from "../../shared/config/categoryConfig";
 
 export const MAP_CATEGORY_SEARCH_PARAM = "category";
 
