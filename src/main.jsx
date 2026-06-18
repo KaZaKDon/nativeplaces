@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { RouterProvider } from "react-router-dom";
+import { HelmetProvider } from "react-helmet-async";
 
 import { router } from "./app/router";
 import { AuthProvider } from "./shared/auth/AuthProvider";
@@ -13,9 +14,11 @@ import "./styles/global.css";
 import "./styles/animations.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
-  <React.StrictMode>
-    <AuthProvider>
-      <RouterProvider router={router} />
-    </AuthProvider>
-  </React.StrictMode>
+    <React.StrictMode>
+        <HelmetProvider>
+            <AuthProvider>
+                <RouterProvider router={router} />
+            </AuthProvider>
+        </HelmetProvider>
+    </React.StrictMode>
 );

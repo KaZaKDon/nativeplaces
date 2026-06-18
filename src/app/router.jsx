@@ -4,6 +4,7 @@ import { AppLayout } from "../layouts/AppLayout";
 import { AccountPage } from "../pages/AccountPage";
 import { AuthPage } from "../pages/AuthPage";
 import { CategoriesPage } from "../pages/CategoriesPage";
+import { CategoryPage } from "../pages/CategoryPage";
 import { HomePage } from "../pages/HomePage";
 import { MapPage } from "../pages/MapPage";
 import { PlacePage } from "../pages/PlacePage";
@@ -30,6 +31,10 @@ export const router = createBrowserRouter([
             {
                 path: "categories",
                 element: <CategoriesPage />,
+            },
+            {
+                path: "category/:slug",
+                element: <CategoryPage />,
             },
             {
                 path: "map",

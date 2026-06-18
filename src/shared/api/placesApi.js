@@ -13,6 +13,14 @@ function normalizeCategoryCode(code) {
     return code || "";
 }
 
+function normalizeCategoryParam(code) {
+    if (code === "real-estate") {
+        return "real_estate";
+    }
+
+    return code || "";
+}
+
 function mapAttributesFromApi(attributes = []) {
     if (!Array.isArray(attributes)) {
         return [];
@@ -104,8 +112,28 @@ function mapPlaceFromApi(place, images = [], attributes = []) {
 }
 
 export const placesApi = {
+    async getPlaces(params = {}) {
+        const apiParams = {
+            ...params,
+            category: normalizeCategoryParam(params.category),
+        };
+
+        const data = await apiClient.get("/places/index.php", apiParams);
+
+        return {
+            places: Array.isArray(data.places) ?
+                data.places.map((place) => mapPlaceFromApi(place)) :
+                [],
+        };
+    },
+
     async getMapPlaces(params = {}) {
-        const data = await apiClient.get("/places/map.php", params);
+        const apiParams = {
+            ...params,
+            category: normalizeCategoryParam(params.category),
+        };
+
+        const data = await apiClient.get("/places/map.php", apiParams);
 
         return {
             places: Array.isArray(data.places) ?
