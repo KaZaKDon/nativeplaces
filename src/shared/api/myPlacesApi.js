@@ -21,6 +21,11 @@ function mapMyPlaceFromApi(place) {
         typeTitle: place.type_title || "",
         typeSlug: place.type_code || "",
         address: place.address || "",
+        localityId: place.locality_id ? Number(place.locality_id) : null,
+        localityTitle: place.locality_title || "",
+        localitySlug: place.locality_slug || "",
+        localityRegion: place.locality_region || "",
+        localityDistrict: place.locality_district || "",
         status: place.status || "",
         publicationType: place.publication_type || "",
         isCommercial: Boolean(Number(place.is_commercial)),
@@ -129,12 +134,14 @@ export const myPlacesApi = {
     async createMyPlace({
         title,
         categoryId,
-        placeTypeId
+        placeTypeId,
+        localityId,
     }) {
         return apiClient.post("/my-places/create.php", {
             title,
             category_id: categoryId,
             place_type_id: placeTypeId,
+            locality_id: localityId,
         });
     },
 
@@ -144,6 +151,7 @@ export const myPlacesApi = {
         shortDescription,
         fullDescription,
         address,
+        localityId,
         latitude,
         longitude,
         contactName,
@@ -160,6 +168,7 @@ export const myPlacesApi = {
             short_description: shortDescription,
             full_description: fullDescription,
             address,
+            locality_id: localityId,
             latitude,
             longitude,
             contact_name: contactName,

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
+import { localitiesApi } from "../shared/api/localitiesApi";
 import { placesApi } from "../shared/api/placesApi";
 import { useMapState } from "../features/map-state/useMapState";
 import { MapBottomSheet } from "../features/map-bottom-sheet/MapBottomSheet";
@@ -23,19 +24,30 @@ export function MapPage() {
     const [allPlaces, setAllPlaces] = useState([]);
     const [placesLoading, setPlacesLoading] = useState(true);
     const [placesError, setPlacesError] = useState("");
+    const [activeLocalityInfo, setActiveLocalityInfo] = useState(null);
 
     useEffect(() => {
         let isMounted = true;
 
         async function loadMapPlaces() {
             try {
-                const data = await placesApi.getMapPlaces();
+                setPlacesLoading(true);
+
+                const data = await placesApi.getMapPlaces({
+                    locality: mapState.locality,
+                });
+                let places = Array.isArray(data.places) ? data.places : [];
+
+                if (mapState.locality && places.length === 0) {
+                    const fallbackData = await placesApi.getMapPlaces();
+                    places = Array.isArray(fallbackData.places) ? fallbackData.places : [];
+                }
 
                 if (!isMounted) {
                     return;
                 }
 
-                setAllPlaces(Array.isArray(data.places) ? data.places : []);
+                setAllPlaces(places);
                 setPlacesError("");
             } catch (error) {
                 console.error("Не удалось загрузить объекты карты:", error);
@@ -58,7 +70,43 @@ export function MapPage() {
         return () => {
             isMounted = false;
         };
-    }, []);
+    }, [mapState.locality]);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        async function loadActiveLocality() {
+            if (!mapState.locality) {
+                setActiveLocalityInfo(null);
+                return;
+            }
+
+            try {
+                const data = await localitiesApi.getLocalities({
+                    q: mapState.locality,
+                    limit: 1,
+                });
+
+                if (!isMounted) {
+                    return;
+                }
+
+                setActiveLocalityInfo(data.localities?.[0] ?? null);
+            } catch (error) {
+                console.error("Не удалось загрузить выбранный населённый пункт:", error);
+
+                if (isMounted) {
+                    setActiveLocalityInfo(null);
+                }
+            }
+        }
+
+        loadActiveLocality();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [mapState.locality]);
 
     useEffect(() => {
         if (placesLoading || placesError) {
@@ -95,12 +143,39 @@ export function MapPage() {
         mapState,
     ]);
 
+
+    const activeLocalityLabel = useMemo(() => {
+        if (!activeLocalityInfo) {
+            return "";
+        }
+
+        return [
+            activeLocalityInfo.title,
+            activeLocalityInfo.districtTitle || activeLocalityInfo.district,
+            activeLocalityInfo.regionTitle || activeLocalityInfo.region,
+        ]
+            .filter(Boolean)
+            .join(", ");
+    }, [activeLocalityInfo]);
+
     const filteredPlaces = useMemo(() => {
         return filterPlaces(allPlaces, {
             category: mapState.category,
             search: debouncedSearch,
+            locality: activeLocalityInfo ? {
+                ...activeLocalityInfo,
+                value: mapState.locality,
+            } : mapState.locality,
+            type: mapState.type,
         });
-    }, [allPlaces, mapState.category, debouncedSearch]);
+    }, [
+        activeLocalityInfo,
+        allPlaces,
+        mapState.category,
+        mapState.locality,
+        mapState.type,
+        debouncedSearch,
+    ]);
 
     const selectedPlace = useMemo(() => {
         return (
@@ -135,20 +210,34 @@ export function MapPage() {
         mapState.clearSelectedPlace();
         mapState.setSearch(value);
     }
+    
+    function handleSelectLocality(locality) {
+        mapState.setLocality(locality);
+    }
+
+    function handleSelectType(type) {
+        mapState.setType(type);
+    }
 
     function renderSidebar(isMobileSheet = false) {
         return (
             <MapSidebar
                 places={filteredPlaces}
+                filterOptionsPlaces={allPlaces}
                 selectedPlace={selectedPlace}
                 hoveredPlace={hoveredPlace}
                 activeCategory={mapState.category}
                 search={mapState.search}
+                activeLocality={mapState.locality}
+                activeLocalityLabel={activeLocalityLabel}
+                activeType={mapState.type}
                 isMobileSheet={isMobileSheet}
                 onSelectCategory={handleSelectCategory}
                 onSelectPlace={handleSelectPlace}
                 onClearSelected={mapState.clearSelectedPlace}
                 onSearchChange={handleSearchChange}
+                onSelectLocality={handleSelectLocality}
+                onSelectType={handleSelectType}
                 onHoverPlace={handleHoverPlace}
             />
         );

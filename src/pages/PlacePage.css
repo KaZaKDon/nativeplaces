@@ -948,6 +948,66 @@ img {
     text-align: right;
 }
 
+.place-hero__content,
+.place-hero h1,
+.place-hero__lead,
+.place-page__attributes,
+.place-page__attribute-row,
+.place-page__tag {
+    min-width: 0;
+}
+
+.place-hero__lead,
+.place-page__attribute-row dd,
+.place-page__tag,
+.place-page__location strong,
+.place-page__location p {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.place-page__location {
+    max-width: 680px;
+    display: grid;
+    gap: 8px;
+    margin-top: 24px;
+    padding: 16px 18px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.055);
+}
+
+.place-page__location-row {
+    display: grid;
+    gap: 6px;
+}
+
+.place-page__location-row + .place-page__location-row {
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.place-page__location span {
+    color: rgba(255, 248, 232, 0.56);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.place-page__location strong {
+    color: rgba(255, 248, 232, 0.94);
+    font-size: 16px;
+    line-height: 1.45;
+}
+
+.place-page__location p {
+    margin: 0;
+    color: rgba(255, 248, 232, 0.68);
+    font-size: 14px;
+    line-height: 1.5;
+}
+
 @media (max-width: 640px) {
     .place-page__summary {
         font-size: 16px;

@@ -8,4 +8,6 @@ export const MAP_URL_PARAMS = {
     CATEGORY: "category",
     PLACE: "place",
     SEARCH: "search",
+    LOCALITY: "locality",
+    TYPE: "type",
 };

@@ -443,9 +443,23 @@ export function PlacePage() {
         );
     }
 
+    const locationTitle = place.localityTitle ||
+        (place.locality && place.locality !== place.address ? place.locality : "");
+    const locationParts = Array.from(
+        new Set(
+            [locationTitle, place.localityDistrict, place.localityRegion].filter(
+                Boolean
+            )
+        )
+    );
+    const locationLabel = locationParts.join(", ");
+    const addressLabel = place.address && place.address !== locationLabel
+        ? place.address
+        : "";
+
     const tags = Array.from(
         new Set(
-            [place.locality, place.typeTitle, place.categoryTitle].filter(
+            [locationTitle, place.typeTitle, place.categoryTitle].filter(
                 Boolean
             )
         )
@@ -618,9 +632,29 @@ export function PlacePage() {
                             </div>
                         )}
 
-                        <p className="place-hero__lead">
-                            {place.fullDescription || place.description}
-                        </p>
+                        {(locationLabel || addressLabel) && (
+                            <div className="place-page__location">
+                                {locationLabel && (
+                                    <div className="place-page__location-row">
+                                        <span>Населённый пункт</span>
+                                        <strong>{locationLabel}</strong>
+                                    </div>
+                                )}
+
+                                {addressLabel && (
+                                    <div className="place-page__location-row">
+                                        <span>Адрес или ориентир</span>
+                                        <p>{addressLabel}</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {(place.fullDescription || place.description) && (
+                            <p className="place-hero__lead">
+                                {place.fullDescription || place.description}
+                            </p>
+                        )}
 
                         {secondaryAttributes.length > 0 && (
                             <section className="place-page__attributes">

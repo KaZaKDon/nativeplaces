@@ -1,34 +1,201 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
+import { localitiesApi } from "../../shared/api/localitiesApi";
+
 import { mapCategories } from "../../shared/config/categoryConfig";
+import { useDebouncedValue } from "../../shared/search/useDebouncedValue";
 
 import "./MapSidebar.css";
 
 const INITIAL_VISIBLE_COUNT = 15;
 const LOAD_MORE_STEP = 15;
 
+function formatLocalityOption(locality) {
+    if (!locality) {
+        return "";
+    }
+
+    return [
+        locality.title,
+        locality.districtTitle || locality.district,
+        locality.regionTitle || locality.region,
+    ]
+        .filter(Boolean)
+        .join(", ");
+}
+
+function getUniqueTagItems(items) {
+    const seen = new Set();
+
+    return items
+        .map((item) => ({
+            ...item,
+            label: String(item.label ?? "").trim(),
+        }))
+        .filter((item) => {
+            if (!item.label) {
+                return false;
+            }
+
+            const key = item.label.toLowerCase();
+
+            if (seen.has(key)) {
+                return false;
+            }
+
+            seen.add(key);
+            return true;
+        });
+}
+
 export function MapSidebar({
     places = [],
+    filterOptionsPlaces = places,
     selectedPlace,
     hoveredPlace,
     activeCategory = "all",
     search = "",
+    activeLocality = "",
+    activeLocalityLabel: activeLocalityLabelProp = "",
+    activeType = "",
     isMobileSheet = false,
     onSelectCategory,
     onSelectPlace,
     onClearSelected,
     onSearchChange,
+    onSelectLocality,
+    onSelectType,
     onHoverPlace,
 }) {
     const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_COUNT);
     const [filtersOpen, setFiltersOpen] = useState(false);
+    const [localitySearch, setLocalitySearch] = useState("");
+    const [localities, setLocalities] = useState([]);
+    const [localitiesLoading, setLocalitiesLoading] = useState(false);
+    const [localitiesError, setLocalitiesError] = useState("");
+    const [localityMenuOpen, setLocalityMenuOpen] = useState(false);
+    const debouncedLocalitySearch = useDebouncedValue(localitySearch, 300);
 
     const visiblePlaces = useMemo(() => {
         return places.slice(0, visibleCount);
     }, [places, visibleCount]);
 
     const hasMorePlaces = visibleCount < places.length;
+
+    const typeOptions = useMemo(() => {
+        const seen = new Set();
+
+        return filterOptionsPlaces
+            .map((place) => ({
+                id: place.typeSlug,
+                title: place.typeTitle,
+            }))
+            .filter((type) => {
+                if (!type.id || !type.title) {
+                    return false;
+                }
+
+                if (seen.has(type.id)) {
+                    return false;
+                }
+
+                seen.add(type.id);
+                return true;
+            })
+            .sort((first, second) => first.title.localeCompare(second.title));
+    }, [filterOptionsPlaces]);
+
+    const activeTypeLabel = useMemo(() => {
+        if (!activeType) {
+            return "";
+        }
+
+        const matchedType = typeOptions.find((type) => type.id === activeType);
+
+        return matchedType?.title || activeType;
+    }, [activeType, typeOptions]);
+
+    const activeLocalityLabel = useMemo(() => {
+        if (!activeLocality) {
+            return "";
+        }
+
+        const matchedPlace = places.find((place) => {
+            return (
+                String(place.localityId || "") === String(activeLocality) ||
+                String(place.localitySlug || "") === String(activeLocality)
+            );
+        });
+
+        return activeLocalityLabelProp ||
+            matchedPlace?.localityTitle ||
+            matchedPlace?.locality ||
+            String(activeLocality);
+    }, [activeLocality, activeLocalityLabelProp, places]);
+
+    const localityQuery = debouncedLocalitySearch.trim();
+    const isLocalityQueryTooShort =
+        localitySearch.trim().length > 0 && localityQuery.length < 2;
+    const shouldShowLocalityEmptyState =
+        !localitiesLoading &&
+        localityQuery.length >= 2 &&
+        localities.length === 0;
+
+    useEffect(() => {
+        let isMounted = true;
+
+        if (!localityMenuOpen && localityQuery === "") {
+            return () => {
+                isMounted = false;
+            };
+        }
+
+        if (localityQuery.length === 1) {
+            return () => {
+                isMounted = false;
+            };
+        }
+
+        async function loadLocalities() {
+            setLocalitiesLoading(true);
+
+            try {
+                const data = await localitiesApi.getLocalities({
+                    q: localityQuery,
+                    limit: localityQuery ? 10 : 20,
+                });
+
+                if (!isMounted) {
+                    return;
+                }
+
+                setLocalities(
+                    Array.isArray(data.localities) ? data.localities : []
+                );
+                setLocalitiesError("");
+            } catch (error) {
+                console.error("Не удалось загрузить населённые пункты:", error);
+
+                if (isMounted) {
+                    setLocalities([]);
+                    setLocalitiesError(
+                        error.message || "Не удалось загрузить населённые пункты."
+                    );
+                }
+            } finally {
+                if (isMounted) {
+                    setLocalitiesLoading(false);
+                }
+            }
+        }
+
+        loadLocalities();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [localityMenuOpen, localityQuery]);
 
     function handleSearchChange(event) {
         setVisibleCount(INITIAL_VISIBLE_COUNT);
@@ -41,13 +208,67 @@ export function MapSidebar({
         onSelectCategory(categoryId);
     }
 
+    function handleClearLocality() {
+        setVisibleCount(INITIAL_VISIBLE_COUNT);
+        setLocalitySearch("");
+        setLocalityMenuOpen(false);
+        onSelectLocality("");
+    }
+
+    function handleLocalitySearchChange(event) {
+        setLocalitySearch(event.target.value);
+        setLocalityMenuOpen(true);
+
+        if (activeLocality) {
+            onSelectLocality("");
+        }
+    }
+
+    function handleSelectLocality(locality) {
+        const value = locality.slug || locality.id;
+
+        setVisibleCount(INITIAL_VISIBLE_COUNT);
+        setLocalitySearch(formatLocalityOption(locality));
+        setLocalityMenuOpen(false);
+        onSelectLocality(value);
+    }
+
+    function handleTypeSelect(typeId) {
+        setVisibleCount(INITIAL_VISIBLE_COUNT);
+        onSelectType(typeId === activeType ? "" : typeId);
+    }
+
+    function handleClearType() {
+        setVisibleCount(INITIAL_VISIBLE_COUNT);
+        onSelectType("");
+    }
+
+    function handleTagSelect(tag) {
+        setVisibleCount(INITIAL_VISIBLE_COUNT);
+
+        if (tag.kind === "locality" && tag.value) {
+            setLocalitySearch(tag.label);
+            onSelectLocality(tag.value);
+            return;
+        }
+
+        onSearchChange(tag.label);
+    }
+
     if (selectedPlace) {
-        const tags = [
-            selectedPlace.locality,
-            selectedPlace.area,
-            selectedPlace.landArea,
-            ...(selectedPlace.tags ?? []),
-        ].filter(Boolean);
+        const localityValue = selectedPlace.localitySlug || selectedPlace.localityId;
+        const tags = getUniqueTagItems([
+            {
+                label: selectedPlace.localityTitle || selectedPlace.locality,
+                kind: "locality",
+                value: localityValue,
+            },
+            { label: selectedPlace.localityDistrict, kind: "search" },
+            { label: selectedPlace.address, kind: "search" },
+            { label: selectedPlace.typeTitle, kind: "search" },
+            { label: selectedPlace.area, kind: "search" },
+            { label: selectedPlace.landArea, kind: "search" },
+        ]);
 
         return (
             <aside className={isMobileSheet ? "map-sidebar map-sidebar--sheet" : "map-sidebar"}>
@@ -78,11 +299,17 @@ export function MapSidebar({
                         <div className="place-panel__tags">
                             {tags.map((tag) => (
                                 <button
-                                    key={tag}
+                                    key={`${tag.kind}-${tag.label}`}
                                     type="button"
-                                    className="place-panel__tag"
+                                    className={
+                                        tag.kind === "locality" &&
+                                            String(activeLocality) === String(tag.value)
+                                            ? "place-panel__tag is-active"
+                                            : "place-panel__tag"
+                                    }
+                                    onClick={() => handleTagSelect(tag)}
                                 >
-                                    {tag}
+                                    {tag.label}
                                 </button>
                             ))}
                         </div>
@@ -125,6 +352,83 @@ export function MapSidebar({
                 <h1>Исследуйте территорию</h1>
             </div>
 
+<div className="map-sidebar__locality-search">
+                <span>Где искать?</span>
+
+                <div className="map-sidebar__locality-combobox">
+                    <input
+                        type="text"
+                        value={localitySearch}
+                        placeholder="Начните вводить: Шахты, Ростов..."
+                        autoComplete="off"
+                        onChange={handleLocalitySearchChange}
+                        onFocus={() => setLocalityMenuOpen(true)}
+                    />
+
+                    {activeLocality && (
+                        <button
+                            className="map-sidebar__locality-clear"
+                            type="button"
+                            onClick={handleClearLocality}
+                            aria-label="Сбросить населённый пункт"
+                        >
+                            ×
+                        </button>
+                    )}
+
+                    {localityMenuOpen && (
+                        <div className="map-sidebar__locality-menu">
+                            {localitiesLoading && (
+                                <p className="map-sidebar__locality-message">
+                                    Ищем населённые пункты...
+                                </p>
+                            )}
+
+                            {isLocalityQueryTooShort && (
+                                <p className="map-sidebar__locality-message">
+                                    Введите минимум 2 символа для поиска.
+                                </p>
+                            )}
+
+                            {!localitiesLoading &&
+                                !isLocalityQueryTooShort &&
+                                localities.map((locality) => (
+                                    <button
+                                        key={locality.id}
+                                        className="map-sidebar__locality-option"
+                                        type="button"
+                                        onClick={() => handleSelectLocality(locality)}
+                                    >
+                                        <strong>{locality.title}</strong>
+                                        <span>
+                                            {[
+                                                locality.districtTitle || locality.district,
+                                                locality.regionTitle || locality.region,
+                                                locality.countryTitle,
+                                            ]
+                                                .filter(Boolean)
+                                                .join(", ")}
+                                        </span>
+                                    </button>
+                                ))}
+
+                            {shouldShowLocalityEmptyState && (
+                                <p className="map-sidebar__locality-message">
+                                    Не нашли населённый пункт? Напишите
+                                    администратору — добавим.
+                                </p>
+                            )}
+
+                            {localitiesError && (
+                                <p className="map-sidebar__locality-message is-error">
+                                    {localitiesError}
+                                </p>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </div>
+
             <label className="map-sidebar__search">
                 <span>Поиск по карте</span>
                 <input
@@ -137,6 +441,8 @@ export function MapSidebar({
 
             {filtersOpen && (
                 <div className="map-sidebar__filters">
+                    <span className="map-sidebar__filter-title">Категории</span>
+
                     {mapCategories.map((category) => (
                         <button
                             key={category.id}
@@ -151,12 +457,57 @@ export function MapSidebar({
                             {category.title}
                         </button>
                     ))}
+
+                    {typeOptions.length > 0 && (
+                        <>
+                            <span className="map-sidebar__filter-title">Тип объекта</span>
+
+                            {typeOptions.map((type) => (
+                                <button
+                                    key={type.id}
+                                    className={
+                                        activeType === type.id
+                                            ? "map-sidebar__filter is-active"
+                                            : "map-sidebar__filter"
+                                    }
+                                    type="button"
+                                    onClick={() => handleTypeSelect(type.id)}
+                                >
+                                    {type.title}
+                                </button>
+                            ))}
+                        </>
+                    )}
                 </div>
             )}
 
             <div className="map-sidebar__count">
                 Найдено объектов: <strong>{places.length}</strong>
             </div>
+
+            {(activeLocality || activeType) && (
+                <div className="map-sidebar__active-filters">
+                    {activeLocality && (
+                        <div className="map-sidebar__active-locality">
+                            <span>Населённый пункт</span>
+                            <strong>{activeLocalityLabel}</strong>
+                            <button type="button" onClick={handleClearLocality}>
+                                Сбросить
+                            </button>
+                        </div>
+                    )}
+
+                    {activeType && (
+                        <div className="map-sidebar__active-locality">
+                            <span>Тип объекта</span>
+                            <strong>{activeTypeLabel}</strong>
+                            <button type="button" onClick={handleClearType}>
+                                Сбросить
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
 
             <div className="map-sidebar__list">
                 {visiblePlaces.map((place) => {

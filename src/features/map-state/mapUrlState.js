@@ -19,6 +19,14 @@ export function getSearchFromParams(searchParams) {
     return searchParams.get(MAP_URL_PARAMS.SEARCH) ?? "";
 }
 
+export function getLocalityFromParams(searchParams) {
+    return searchParams.get(MAP_URL_PARAMS.LOCALITY) ?? "";
+}
+
+export function getTypeFromParams(searchParams) {
+    return searchParams.get(MAP_URL_PARAMS.TYPE) ?? "";
+}
+
 export function updateMapSearchParams(searchParams, changes) {
     const nextParams = new URLSearchParams(searchParams);
 

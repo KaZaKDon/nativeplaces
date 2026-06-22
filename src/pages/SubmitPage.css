@@ -93,6 +93,7 @@
 }
 
 .submit-form__field input,
+.submit-form__field select,
 .submit-form__field textarea {
     width: 100%;
     border: 1px solid rgba(255, 255, 255, 0.14);
@@ -103,9 +104,14 @@
     outline: none;
 }
 
-.submit-form__field input {
+.submit-form__field input,
+.submit-form__field select {
     min-height: 48px;
     padding: 0 14px;
+}
+
+.submit-form__field select {
+    cursor: pointer;
 }
 
 .submit-form__field textarea {
@@ -114,6 +120,7 @@
 }
 
 .submit-form__field input:focus,
+.submit-form__field select:focus,
 .submit-form__field textarea:focus {
     border-color: rgba(244, 213, 141, 0.5);
     box-shadow: 0 0 0 4px rgba(244, 213, 141, 0.1);
@@ -353,6 +360,72 @@
     font-weight: 800;
 
     cursor: pointer;
+}
+
+.submit-locality-combobox {
+    position: relative;
+    display: grid;
+    gap: 8px;
+}
+
+.submit-locality-combobox__selected {
+    color: rgba(168, 202, 150, 0.95);
+    font-size: 13px;
+}
+
+.submit-locality-combobox__menu {
+    position: absolute;
+    z-index: 20;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    max-height: 320px;
+    overflow-y: auto;
+    padding: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 18px;
+    background: rgba(15, 23, 37, 0.98);
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.38);
+}
+
+.submit-locality-option {
+    display: grid;
+    width: 100%;
+    gap: 4px;
+    padding: 12px;
+    border: 0;
+    border-radius: 14px;
+    background: transparent;
+    color: rgba(255, 248, 232, 0.9);
+    text-align: left;
+    cursor: pointer;
+}
+
+.submit-locality-option:hover,
+.submit-locality-option:focus-visible {
+    background: rgba(244, 213, 141, 0.1);
+    outline: none;
+}
+
+.submit-locality-option strong {
+    font-size: 14px;
+}
+
+.submit-locality-option span,
+.submit-locality-combobox__message,
+.submit-locality-field small {
+    color: rgba(255, 248, 232, 0.62);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.submit-locality-combobox__message {
+    margin: 0;
+    padding: 12px;
+}
+
+.submit-locality-combobox__message.is-error {
+    color: #ffb4a8;
 }
 
 @media (max-width: 900px) {

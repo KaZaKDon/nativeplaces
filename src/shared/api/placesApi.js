@@ -73,7 +73,12 @@ function mapPlaceFromApi(place, images = [], attributes = []) {
         description: place.short_description || "",
         fullDescription: place.full_description || "",
 
-        locality: place.address || "",
+        locality: place.locality_title || place.address || "",
+        localityId: place.locality_id ? Number(place.locality_id) : null,
+        localityTitle: place.locality_title || "",
+        localitySlug: place.locality_slug || "",
+        localityRegion: place.locality_region || "",
+        localityDistrict: place.locality_district || "",
         address: place.address || "",
 
         price: getAttributeValue(mappedAttributes, "price"),
@@ -83,9 +88,13 @@ function mapPlaceFromApi(place, images = [], attributes = []) {
 
         attributes: mappedAttributes,
 
-        tags: [place.category_title, place.type_title, place.address].filter(
-            Boolean
-        ),
+        tags: [
+            place.locality_title,
+            place.locality_district,
+            place.category_title,
+            place.type_title,
+            place.address,
+        ].filter(Boolean),
 
         position: place.latitude && place.longitude ?
             [Number(place.latitude), Number(place.longitude)] :
