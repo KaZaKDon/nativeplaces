@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { localitiesApi } from "../shared/api/localitiesApi";
+import { validateSubmitForm } from "./submitFormValidation";
 import { useDebouncedValue } from "../shared/search/useDebouncedValue";
 import { myPlacesApi } from "../shared/api/myPlacesApi";
 import { submitOptionsApi } from "../shared/api/submitOptionsApi";
@@ -360,6 +361,9 @@ export function SubmitPage() {
         }) || null;
     }, [selectedLocality, localities]);
 
+    const hasSubmitOptions = submitCategories.length > 0 && submitTypes.length > 0;
+    const isFormBootstrapLoading = editingLoading || (optionsLoading && !hasSubmitOptions);
+
     const localityHasSearch = localitySearch.trim().length > 0;
     const isLocalityQueryTooShort =
         localityHasSearch && debouncedLocalitySearch.trim().length < 2;
@@ -607,33 +611,19 @@ export function SubmitPage() {
             return;
         }
 
-        if (!formData.title.trim()) {
-            setSubmitStatus("Укажите название объекта.");
-            return;
-        }
-
         const currentCategoryId = selectedCategoryItem?.id ?? editingPlace?.categoryId;
         const currentPlaceTypeId = selectedTypeItem?.id ?? editingPlace?.placeTypeId;
-
-        if (!currentCategoryId) {
-            setSubmitStatus("Не удалось определить категорию объекта.");
-            return;
-        }
-
-        if (!currentPlaceTypeId) {
-            setSubmitStatus("Не удалось определить тип объекта.");
-            return;
-        }
-
         const currentLocalityId = Number(selectedLocality || 0);
+        const validationMessage = validateSubmitForm({
+            title: formData.title,
+            categoryId: currentCategoryId,
+            placeTypeId: currentPlaceTypeId,
+            localityId: currentLocalityId,
+            hasLocation: Boolean(submitLocation || editingPlace?.position),
+        });
 
-        if (!currentLocalityId) {
-            setSubmitStatus("Выберите населённый пункт.");
-            return;
-        }
-
-        if (!submitLocation && !editingPlace?.position) {
-            setSubmitStatus("Укажите точку на карте.");
+        if (validationMessage) {
+            setSubmitStatus(validationMessage);
             return;
         }
 
@@ -717,7 +707,7 @@ export function SubmitPage() {
         }
     }
 
-    if (editingLoading || optionsLoading || localitiesLoading) {
+    if (isFormBootstrapLoading) {
         return (
             <main className="submit-page">
                 <section className="submit-hero">
@@ -1021,181 +1011,181 @@ export function SubmitPage() {
                             </small>
                         </div>
 
-                    <label className="submit-form__field">
-                        <span>Адрес или ориентир</span>
-                        <input
-                            type="text"
-                            name="address"
-                            value={formData.address}
-                            placeholder="Например, Ростовская область, станица Вёшенская"
-                            onChange={handleFormChange}
-                        />
-                    </label>
+                        <label className="submit-form__field">
+                            <span>Адрес или ориентир</span>
+                            <input
+                                type="text"
+                                name="address"
+                                value={formData.address}
+                                placeholder="Например, Ростовская область, станица Вёшенская"
+                                onChange={handleFormChange}
+                            />
+                        </label>
 
-                    <div className="submit-location-box">
-                        <div>
-                            <span>Точка на карте</span>
+                        <div className="submit-location-box">
+                            <div>
+                                <span>Точка на карте</span>
 
-                            {submitLocation ? (
-                                <strong>
-                                    {submitLocation.lat},{" "}
-                                    {submitLocation.lng}
-                                </strong>
-                            ) : editingPlace?.position ? (
-                                <strong>
-                                    {editingPlace.position[0]},{" "}
-                                    {editingPlace.position[1]}
-                                </strong>
-                            ) : (
-                                <strong>Точка пока не выбрана</strong>
-                            )}
+                                {submitLocation ? (
+                                    <strong>
+                                        {submitLocation.lat},{" "}
+                                        {submitLocation.lng}
+                                    </strong>
+                                ) : editingPlace?.position ? (
+                                    <strong>
+                                        {editingPlace.position[0]},{" "}
+                                        {editingPlace.position[1]}
+                                    </strong>
+                                ) : (
+                                    <strong>Точка пока не выбрана</strong>
+                                )}
+                            </div>
+
+                            <Link
+                                className="submit-location-box__button"
+                                to="/submit/location"
+                                onClick={handleSaveDraftBeforeLocation}
+                            >
+                                {submitLocation || editingPlace?.position
+                                    ? "Изменить точку"
+                                    : "Указать на карте"}
+                            </Link>
                         </div>
 
-                        <Link
-                            className="submit-location-box__button"
-                            to="/submit/location"
-                            onClick={handleSaveDraftBeforeLocation}
-                        >
-                            {submitLocation || editingPlace?.position
-                                ? "Изменить точку"
-                                : "Указать на карте"}
-                        </Link>
-                    </div>
+                        <label className="submit-form__field">
+                            <span>Фотографии</span>
 
-                    <label className="submit-form__field">
-                        <span>Фотографии</span>
+                            <input
+                                type="file"
+                                multiple
+                                accept="image/*"
+                                onChange={handleImagesChange}
+                            />
+                        </label>
 
-                        <input
-                            type="file"
-                            multiple
-                            accept="image/*"
-                            onChange={handleImagesChange}
-                        />
-                    </label>
+                        {gallery.length > 0 && (
+                            <div className="submit-gallery-preview">
+                                {gallery.map((image, index) => (
+                                    <div
+                                        className={
+                                            image.isCover
+                                                ? "submit-gallery-preview__item submit-gallery-preview__item--cover"
+                                                : "submit-gallery-preview__item"
+                                        }
+                                        key={`${image.id ?? "local"}-${image.url}-${index}`}
+                                    >
+                                        <img src={image.url} alt={`Фото ${index + 1}`} />
 
-                    {gallery.length > 0 && (
-                        <div className="submit-gallery-preview">
-                            {gallery.map((image, index) => (
-                                <div
-                                    className={
-                                        image.isCover
-                                            ? "submit-gallery-preview__item submit-gallery-preview__item--cover"
-                                            : "submit-gallery-preview__item"
-                                    }
-                                    key={`${image.id ?? "local"}-${image.url}-${index}`}
-                                >
-                                    <img src={image.url} alt={`Фото ${index + 1}`} />
-
-                                    <div className="submit-gallery-preview__actions">
-                                        <button
-                                            type="button"
-                                            onClick={() => handleMoveImage(index, -1)}
-                                            disabled={index === 0 || !image.isUploaded}
-                                        >
-                                            ←
-                                        </button>
-
-                                        <button
-                                            type="button"
-                                            onClick={() => handleMoveImage(index, 1)}
-                                            disabled={index === gallery.length - 1 || !image.isUploaded}
-                                        >
-                                            →
-                                        </button>
-                                        {image.isCover ? (
-                                            <span className="submit-gallery-preview__badge">
-                                                Обложка
-                                            </span>
-                                        ) : (
+                                        <div className="submit-gallery-preview__actions">
                                             <button
                                                 type="button"
-                                                onClick={() => handleSetCoverImage(index)}
-                                                disabled={!image.isUploaded}
+                                                onClick={() => handleMoveImage(index, -1)}
+                                                disabled={index === 0 || !image.isUploaded}
                                             >
-                                                Сделать обложкой
+                                                ←
                                             </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => handleMoveImage(index, 1)}
+                                                disabled={index === gallery.length - 1 || !image.isUploaded}
+                                            >
+                                                →
+                                            </button>
+                                            {image.isCover ? (
+                                                <span className="submit-gallery-preview__badge">
+                                                    Обложка
+                                                </span>
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleSetCoverImage(index)}
+                                                    disabled={!image.isUploaded}
+                                                >
+                                                    Сделать обложкой
+                                                </button>
+                                            )}
+
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRemoveImage(index)}
+                                            >
+                                                Удалить
+                                            </button>
+                                        </div>
+
+                                        {!image.isUploaded && (
+                                            <span className="submit-gallery-preview__new">
+                                                Будет загружено после сохранения
+                                            </span>
                                         )}
-
-                                        <button
-                                            type="button"
-                                            onClick={() => handleRemoveImage(index)}
-                                        >
-                                            Удалить
-                                        </button>
                                     </div>
+                                ))}
+                            </div>
+                        )}
 
-                                    {!image.isUploaded && (
-                                        <span className="submit-gallery-preview__new">
-                                            Будет загружено после сохранения
-                                        </span>
-                                    )}
-                                </div>
-                            ))}
+                        <p className="submit-form__note">
+                            Первая загруженная фотография становится обложкой автоматически.
+                            В режиме редактирования можно удалить фото или выбрать другую обложку.
+                        </p>
+                    </section>
+
+                    <section className="submit-form__section">
+                        <h2>Контакт для связи</h2>
+
+                        <label className="submit-form__field">
+                            <span>Имя</span>
+                            <input
+                                type="text"
+                                name="contactName"
+                                value={formData.contactName}
+                                placeholder="Как к вам обращаться"
+                                onChange={handleFormChange}
+                            />
+                        </label>
+
+                        <label className="submit-form__field">
+                            <span>Телефон или email</span>
+                            <input
+                                type="text"
+                                name="contactValue"
+                                value={formData.contactValue}
+                                placeholder="Этот контакт не будет показан публично"
+                                onChange={handleFormChange}
+                            />
+                        </label>
+                    </section>
+
+                    {(optionsError || localitiesError) && (
+                        <div className="submit-form__status">
+                            {optionsError || localitiesError}
                         </div>
                     )}
 
-                    <p className="submit-form__note">
-                        Первая загруженная фотография становится обложкой автоматически.
-                        В режиме редактирования можно удалить фото или выбрать другую обложку.
-                    </p>
-            </section>
+                    {submitStatus && (
+                        <div className="submit-form__status">
+                            {submitStatus}
+                        </div>
+                    )}
 
-            <section className="submit-form__section">
-                <h2>Контакт для связи</h2>
-
-                <label className="submit-form__field">
-                    <span>Имя</span>
-                    <input
-                        type="text"
-                        name="contactName"
-                        value={formData.contactName}
-                        placeholder="Как к вам обращаться"
-                        onChange={handleFormChange}
-                    />
-                </label>
-
-                <label className="submit-form__field">
-                    <span>Телефон или email</span>
-                    <input
-                        type="text"
-                        name="contactValue"
-                        value={formData.contactValue}
-                        placeholder="Этот контакт не будет показан публично"
-                        onChange={handleFormChange}
-                    />
-                </label>
-            </section>
-
-            {(optionsError || localitiesError) && (
-                <div className="submit-form__status">
-                    {optionsError || localitiesError}
-                </div>
-            )}
-
-            {submitStatus && (
-                <div className="submit-form__status">
-                    {submitStatus}
-                </div>
-            )}
-
-            <button
-                className="submit-form__submit"
-                type="submit"
-                disabled={
-                    isSubmitting ||
-                    optionsLoading ||
-                    localitiesLoading ||
-                    attributesLoading ||
-                    editingLoading
-                }
-            >
-                {isSubmitting
-                    ? "Сохраняем..."
-                    : isEditMode
-                        ? "Сохранить изменения"
-                        : "Отправить на модерацию"}
-            </button>
-        </form>
+                    <button
+                        className="submit-form__submit"
+                        type="submit"
+                        disabled={
+                            isSubmitting ||
+                            (optionsLoading && !hasSubmitOptions) ||
+                            localitiesLoading ||
+                            attributesLoading ||
+                            editingLoading
+                        }
+                    >
+                        {isSubmitting
+                            ? "Сохраняем..."
+                            : isEditMode
+                                ? "Сохранить изменения"
+                                : "Отправить на модерацию"}
+                    </button>
+                </form>
             </section >
         </main >
     );

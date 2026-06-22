@@ -1,6 +1,6 @@
-import { MAP_CATEGORY_ALL } from "../../shared/config/categoryConfig";
-import { buildPlaceSearchText } from "./buildPlaceSearchText";
-import { normalizeSearchText } from "../search/normalizeSearchText";
+import { MAP_CATEGORY_ALL } from "../../shared/config/categoryConfig.js";
+import { buildPlaceSearchText } from "./buildPlaceSearchText.js";
+import { normalizeSearchText } from "../search/normalizeSearchText.js";
 
 function placeMatchesCategory(place, category) {
     return category === MAP_CATEGORY_ALL || place.categorySlug === category;

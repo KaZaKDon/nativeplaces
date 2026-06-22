@@ -1,5 +1,8 @@
 const API_BASE_URL =
-    import.meta.env.VITE_API_BASE_URL ?? "/api";
+    import.meta.env?.VITE_API_BASE_URL ?? "/api";
+
+const DEFAULT_REQUEST_TIMEOUT_MS = 30000;
+const UPLOAD_REQUEST_TIMEOUT_MS = 120000;
 
 export class ApiError extends Error {
     constructor(message, options = {}) {
@@ -53,26 +56,47 @@ export async function apiRequest(endpoint, options = {}) {
     const {
         method = "GET",
             params,
-            body,
-            headers,
-            isFormData = false,
+        body,
+        headers,
+        isFormData = false,
+        timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS,
     } = options;
 
-    const response = await fetch(buildUrl(endpoint, params), {
-        method,
-        credentials: "include",
-        headers: isFormData ?
-            headers :
-            {
-                "Content-Type": "application/json",
-                ...headers,
-            },
-        body: body ?
-            isFormData ?
-            body :
-            JSON.stringify(body) :
-            undefined,
-    });
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => {
+        controller.abort();
+    }, timeoutMs);
+
+    let response;
+
+    try {
+        response = await fetch(buildUrl(endpoint, params), {
+            method,
+            credentials: "include",
+            signal: controller.signal,
+            headers: isFormData ?
+                headers :
+                {
+                    "Content-Type": "application/json",
+                    ...headers,
+                },
+            body: body ?
+                isFormData ?
+                body :
+                JSON.stringify(body) :
+                undefined,
+        });
+    } catch (error) {
+        if (error.name === "AbortError") {
+            throw new ApiError("Сервер не ответил вовремя. Попробуйте обновить страницу.", {
+                status: 0,
+            });
+        }
+
+        throw error;
+    } finally {
+        window.clearTimeout(timeoutId);
+    }
 
     const result = await parseJsonResponse(response);
 
@@ -88,17 +112,19 @@ export async function apiRequest(endpoint, options = {}) {
 }
 
 export const apiClient = {
-    get(endpoint, params) {
+    get(endpoint, params, options = {}) {
         return apiRequest(endpoint, {
             method: "GET",
             params,
+            ...options,
         });
     },
 
-    post(endpoint, body) {
+    post(endpoint, body, options = {}) {
         return apiRequest(endpoint, {
             method: "POST",
             body,
+            ...options,
         });
     },
 
@@ -107,6 +133,7 @@ export const apiClient = {
             method: "POST",
             body: formData,
             isFormData: true,
+            timeoutMs: UPLOAD_REQUEST_TIMEOUT_MS,
         });
     },
 };

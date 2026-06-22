@@ -10,7 +10,7 @@ export function AccountPlacesSection({
     placesLoading = false,
 }) {
     async function handleDeletePlace(placeId) {
-        const isConfirmed = window.confirm("Переместить объект в архив?");
+        const isConfirmed = window.confirm("Переместить объявление в архив?");
 
         if (!isConfirmed) {
             return;
@@ -27,7 +27,7 @@ export function AccountPlacesSection({
         } catch (error) {
             console.error(error);
 
-            window.alert(error.message || "Не удалось удалить объект");
+            window.alert(error.message || "Не удалось Переместить объявление в архив?");
         }
     }
 
@@ -60,6 +60,7 @@ export function AccountPlacesSection({
                         <AccountPlaceCard
                             place={place}
                             onDelete={handleDeletePlace}
+                            deleteLabel="В архив"
                         />
                     )}
                 </AccountBookPager>

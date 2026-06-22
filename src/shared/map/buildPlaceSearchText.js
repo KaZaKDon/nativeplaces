@@ -1,4 +1,4 @@
-import { normalizeSearchText } from "../search/normalizeSearchText";
+import { normalizeSearchText } from "../search/normalizeSearchText.js";
 
 export function buildPlaceSearchText(place) {
     return normalizeSearchText(
