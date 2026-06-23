@@ -305,6 +305,45 @@
     cursor: wait;
 }
 
+.auth-form__link {
+    justify-self: start;
+
+    padding: 0;
+
+    border: 0;
+    background: transparent;
+
+    color: var(--color-gold-light);
+
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
+
+    cursor: pointer;
+}
+
+.auth-form__link:hover {
+    color: var(--color-gold);
+    text-decoration: underline;
+}
+
+.auth-form__link--back {
+    color: var(--color-text-muted);
+}
+
+.auth-form__success {
+    padding: 12px 14px;
+
+    border-radius: 14px;
+    border: 1px solid rgba(20, 184, 166, 0.35);
+
+    background: rgba(20, 184, 166, 0.14);
+    color: #ccfbf1;
+
+    font-size: 14px;
+    line-height: 1.5;
+}
+
 @media (max-width: 640px) {
     .auth-page {
         padding: 16px;

@@ -12,6 +12,8 @@
 /auth/login.php
 /auth/register.php
 /auth/logout.php
+/auth/forgot-password.php
+/auth/reset-password.php
 ```
 
 ### Профиль

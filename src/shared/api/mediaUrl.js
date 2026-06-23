@@ -1,5 +1,5 @@
 const MEDIA_BASE_URL =
-    import.meta.env.VITE_MEDIA_BASE_URL ?? "https://native-places.ru";
+    import.meta.env?.VITE_MEDIA_BASE_URL ?? "https://native-places.ru";
 
 export function getMediaUrl(path) {
     if (!path) {

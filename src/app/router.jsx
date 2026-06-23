@@ -1,19 +1,36 @@
+import { Suspense } from "react";
 import { createBrowserRouter } from "react-router-dom";
 
 import { AppLayout } from "../layouts/AppLayout";
-import { AccountPage } from "../pages/AccountPage";
-import { AuthPage } from "../pages/AuthPage";
-import { CategoriesPage } from "../pages/CategoriesPage";
-import { CategoryPage } from "../pages/CategoryPage";
-import { HomePage } from "../pages/HomePage";
-import { MapPage } from "../pages/MapPage";
-import { PlacePage } from "../pages/PlacePage";
-import { SubmitLocationPage } from "../pages/SubmitLocationPage";
-import { SubmitPage } from "../pages/SubmitPage";
 import { RequireAuth } from "../shared/auth/RequireAuth";
-import { RoutePage } from "../pages/RoutePage";
-import { SharedRoutePage } from "../pages/SharedRoutePage";
-import { NotFoundPage } from "../pages/NotFound/NotFoundPage";
+import {
+    AccountPage,
+    AuthPage,
+    CategoriesPage,
+    CategoryPage,
+    HomePage,
+    MapPage,
+    NotFoundPage,
+    PlacePage,
+    RoutePage,
+    SharedRoutePage,
+    SubmitLocationPage,
+    SubmitPage,
+} from "./lazyRoutePages";
+
+function withPageLoader(element) {
+    return (
+        <Suspense
+            fallback={
+                <main className="page-loader" aria-live="polite">
+                    <p>Загружаем раздел...</p>
+                </main>
+            }
+        >
+            {element}
+        </Suspense>
+    );
+}
 
 export const router = createBrowserRouter([
     {
@@ -22,33 +39,33 @@ export const router = createBrowserRouter([
         children: [
             {
                 index: true,
-                element: <HomePage />,
+                element: withPageLoader(<HomePage />),
             },
             {
                 path: "auth",
-                element: <AuthPage />,
+                element: withPageLoader(<AuthPage />),
             },
             {
                 path: "categories",
-                element: <CategoriesPage />,
+                element: withPageLoader(<CategoriesPage />),
             },
             {
                 path: "category/:slug",
-                element: <CategoryPage />,
+                element: withPageLoader(<CategoryPage />),
             },
             {
                 path: "map",
-                element: <MapPage />,
+                element: withPageLoader(<MapPage />),
             },
             {
                 path: "place/:slug",
-                element: <PlacePage />,
+                element: withPageLoader(<PlacePage />),
             },
             {
                 path: "submit",
                 element: (
                     <RequireAuth>
-                        <SubmitPage />
+                        {withPageLoader(<SubmitPage />)}
                     </RequireAuth>
                 ),
             },
@@ -56,7 +73,7 @@ export const router = createBrowserRouter([
                 path: "submit/location",
                 element: (
                     <RequireAuth>
-                        <SubmitLocationPage />
+                        {withPageLoader(<SubmitLocationPage />)}
                     </RequireAuth>
                 ),
             },
@@ -64,7 +81,7 @@ export const router = createBrowserRouter([
                 path: "account",
                 element: (
                     <RequireAuth>
-                        <AccountPage />
+                        {withPageLoader(<AccountPage />)}
                     </RequireAuth>
                 ),
             },
@@ -72,17 +89,17 @@ export const router = createBrowserRouter([
                 path: "routes/:id",
                 element: (
                     <RequireAuth>
-                        <RoutePage />
+                        {withPageLoader(<RoutePage />)}
                     </RequireAuth>
                 ),
             },
             {
                 path: "routes/share/:token",
-                element: <SharedRoutePage />,
+                element: withPageLoader(<SharedRoutePage />),
             },
             {
                 path: "*",
-                element: <NotFoundPage />,
+                element: withPageLoader(<NotFoundPage />),
             },
         ],
     },

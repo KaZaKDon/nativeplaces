@@ -7,6 +7,7 @@ import { useMapState } from "../features/map-state/useMapState";
 import { MapBottomSheet } from "../features/map-bottom-sheet/MapBottomSheet";
 import { filterPlaces } from "../shared/map/filterPlaces";
 import { useDebouncedValue } from "../shared/search/useDebouncedValue";
+import { Seo } from "../shared/seo/Seo";
 import { MapView } from "../widgets/MapView/MapView";
 import { MapSidebar } from "../widgets/MapSidebar/MapSidebar";
 
@@ -210,7 +211,7 @@ export function MapPage() {
         mapState.clearSelectedPlace();
         mapState.setSearch(value);
     }
-    
+
     function handleSelectLocality(locality) {
         mapState.setLocality(locality);
     }
@@ -244,33 +245,42 @@ export function MapPage() {
     }
 
     return (
-        <main className="map-page">
-            <section className="map-shell">
-                <div className="map-area">
-                    <MapView
-                        places={filteredPlaces}
-                        selectedPlace={selectedPlace}
-                        hoveredPlace={hoveredPlace}
-                        onSelectPlace={handleSelectPlace}
-                        onHoverPlace={handleHoverPlace}
-                    />
-                </div>
+        <>
+            <Seo
+                title="Карта Native Places — недвижимость, аренда, отдых, рыбалка и охота"
+                description="Интерактивная карта Native Places с объявлениями о недвижимости, аренде, базах отдыха, рыбалке, охоте и природных местах. Ищите объекты по категориям, типам и населённым пунктам."
+                canonical="https://native-places.ru/map"
+                image="https://native-places.ru/images/logo/logo.png"
+            />
 
-                <div className="map-sidebar-desktop">
-                    {placesLoading && <p>Загружаем объекты...</p>}
-                    {placesError && <p>{placesError}</p>}
-                    {!placesLoading && !placesError && renderSidebar()}
-                </div>
+            <main className="map-page">
+                <section className="map-shell">
+                    <div className="map-area">
+                        <MapView
+                            places={filteredPlaces}
+                            selectedPlace={selectedPlace}
+                            hoveredPlace={hoveredPlace}
+                            onSelectPlace={handleSelectPlace}
+                            onHoverPlace={handleHoverPlace}
+                        />
+                    </div>
 
-                <MapBottomSheet
-                    state={mapState.sheetState}
-                    onStateChange={mapState.setSheetState}
-                >
-                    {placesLoading && <p>Загружаем объекты...</p>}
-                    {placesError && <p>{placesError}</p>}
-                    {!placesLoading && !placesError && renderSidebar(true)}
-                </MapBottomSheet>
-            </section>
-        </main>
+                    <div className="map-sidebar-desktop">
+                        {placesLoading && <p>Загружаем объекты...</p>}
+                        {placesError && <p>{placesError}</p>}
+                        {!placesLoading && !placesError && renderSidebar()}
+                    </div>
+
+                    <MapBottomSheet
+                        state={mapState.sheetState}
+                        onStateChange={mapState.setSheetState}
+                    >
+                        {placesLoading && <p>Загружаем объекты...</p>}
+                        {placesError && <p>{placesError}</p>}
+                        {!placesLoading && !placesError && renderSidebar(true)}
+                    </MapBottomSheet>
+                </section>
+            </main>
+        </>
     );
 }

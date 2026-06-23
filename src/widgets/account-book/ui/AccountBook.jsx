@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import { useAuth } from "../../../shared/auth/useAuth";
 import { favoritesApi } from "../../../shared/api/favoritesApi";
@@ -34,8 +35,10 @@ function mapUserToProfile(user) {
 
 export function AccountBook() {
     const { user } = useAuth();
+    const [searchParams, setSearchParams] = useSearchParams();
 
-    const [activeTab, setActiveTab] = useState("places");
+    const queryTab = searchParams.get("tab");
+    const activeTab = sectionComponents[queryTab] ? queryTab : "places";
     const [profileOverride, setProfileOverride] = useState(null);
 
     const [places, setPlaces] = useState([]);
@@ -152,6 +155,14 @@ export function AccountBook() {
         };
     }, []);
 
+    function handleTabChange(tabId) {
+        setSearchParams((currentParams) => {
+            const nextParams = new URLSearchParams(currentParams);
+            nextParams.set("tab", tabId);
+            return nextParams;
+        });
+    }
+
     const stats = {
         places: places.length,
         favorites: favorites.length,
@@ -222,7 +233,7 @@ export function AccountBook() {
                         }
                         key={tab.id}
                         type="button"
-                        onClick={() => setActiveTab(tab.id)}
+                        onClick={() => handleTabChange(tab.id)}
                     >
                         {tab.title}
                     </button>

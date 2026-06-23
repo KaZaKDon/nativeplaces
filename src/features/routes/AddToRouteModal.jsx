@@ -1,18 +1,33 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
 import { routesApi } from "../../shared/api/routesApi";
+import { useAuth } from "../../shared/auth/useAuth";
 
 import "./AddToRouteModal.css";
 
 export function AddToRouteModal({ place, onClose }) {
+    const { isAuth } = useAuth();
+
     const [routes, setRoutes] = useState([]);
     const [selectedRouteId, setSelectedRouteId] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
     const [status, setStatus] = useState("");
 
     useEffect(() => {
         let isMounted = true;
 
+        if (!isAuth) {
+            return () => {
+                isMounted = false;
+            };
+        }
+
         async function fetchRoutes() {
+            setLoading(true);
+            setStatus("");
+
             try {
                 const data = await routesApi.getRoutes();
 
@@ -28,6 +43,10 @@ export function AddToRouteModal({ place, onClose }) {
                 if (isMounted) {
                     setStatus(error.message || "Не удалось загрузить маршруты.");
                 }
+            } finally {
+                if (isMounted) {
+                    setLoading(false);
+                }
             }
         }
 
@@ -36,15 +55,27 @@ export function AddToRouteModal({ place, onClose }) {
         return () => {
             isMounted = false;
         };
-    }, []);
+    }, [isAuth]);
 
     async function handleAddToRoute(event) {
         event.preventDefault();
+
+        if (submitting) {
+            return;
+        }
+
+        if (!isAuth) {
+            setStatus("Чтобы добавить объект в маршрут, войдите в аккаунт.");
+            return;
+        }
 
         if (!selectedRouteId) {
             setStatus("Выберите маршрут.");
             return;
         }
+
+        setSubmitting(true);
+        setStatus("Добавляем объект в маршрут...");
 
         try {
             await routesApi.addPlaceToRoute({
@@ -60,6 +91,8 @@ export function AddToRouteModal({ place, onClose }) {
         } catch (error) {
             console.error(error);
             setStatus(error.message || "Не удалось добавить объект в маршрут.");
+            } finally {
+            setSubmitting(false);
         }
     }
 
@@ -79,12 +112,26 @@ export function AddToRouteModal({ place, onClose }) {
 
                 <h2>{place.title}</h2>
 
-                {routes.length === 0 ? (
+                {!isAuth ? (
+                    <div className="add-route-modal__empty">
+                        <p>Чтобы добавить объект в маршрут, войдите в аккаунт.</p>
+                        <Link to="/auth" onClick={onClose}>
+                            Войти
+                        </Link>
+                    </div>
+                ) : loading ? (
+                    <div className="add-route-modal__empty">
+                        <p>Загружаем ваши маршруты...</p>
+                    </div>
+                ) : routes.length === 0 ? (
                     <div className="add-route-modal__empty">
                         <p>
                             У вас пока нет маршрутов. Создайте маршрут в кабинете,
                             а затем добавьте сюда объект.
                         </p>
+                        <Link to="/account?tab=routes" onClick={onClose}>
+                            Создать маршрут
+                        </Link>
                     </div>
                 ) : (
                     <form className="add-route-form" onSubmit={handleAddToRoute}>
@@ -112,13 +159,17 @@ export function AddToRouteModal({ place, onClose }) {
                             </p>
                         )}
 
-                        <button className="add-route-form__submit" type="submit">
-                            Добавить
+                        <button
+                            className="add-route-form__submit"
+                            type="submit"
+                            disabled={submitting}
+                        >
+                            {submitting ? "Добавляем..." : "Добавить"}
                         </button>
                     </form>
                 )}
 
-                {routes.length === 0 && status && (
+                {(routes.length === 0 || loading || !isAuth) && status && (
                     <p className="add-route-modal__status">{status}</p>
                 )}
             </div>

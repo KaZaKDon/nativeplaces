@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
-import { placesApi } from "../shared/api/placesApi";
+import { getPlaceBySlug } from "../shared/api/placesApi";
 import { createPlaceMapUrl } from "../entities/place/lib/createPlaceMapUrl";
 import { createPlaceRouteUrl } from "../entities/place/lib/createPlaceRouteUrl";
 import { getPlaceImages } from "../entities/place/lib/getPlaceImages";
@@ -139,7 +139,7 @@ export function PlacePage() {
             setPlaceLoading(true);
 
             try {
-                const data = await placesApi.getPlaceBySlug(slug);
+                const data = await getPlaceBySlug(slug);
 
                 if (!isMounted) {
                     return;

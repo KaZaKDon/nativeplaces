@@ -119,53 +119,56 @@ function mapPlaceFromApi(place, images = [], attributes = []) {
         createdAt: place.created_at || "",
     };
 }
+export async function getPlaces(params = {}) {
+    const apiParams = {
+        ...params,
+        category: normalizeCategoryParam(params.category),
+    };
+
+    const data = await apiClient.get("/places/index.php", apiParams);
+
+    return {
+        places: Array.isArray(data.places) ?
+            data.places.map((place) => mapPlaceFromApi(place)) :
+            [],
+    };
+}
+
+export async function getMapPlaces(params = {}) {
+    const apiParams = {
+        ...params,
+        category: normalizeCategoryParam(params.category),
+    };
+
+    const data = await apiClient.get("/places/map.php", apiParams);
+
+    return {
+        places: Array.isArray(data.places) ?
+            data.places
+            .map((place) => mapPlaceFromApi(place))
+            .filter((place) => place.position) :
+            [],
+    };
+}
+
+export async function getPlaceBySlug(slug) {
+    const data = await apiClient.get("/places/show.php", {
+        slug,
+    });
+
+    return {
+        place: data.place ?
+            mapPlaceFromApi(
+                data.place,
+                data.images ?? [],
+                data.attributes ?? []
+            ) :
+            null,
+    };
+}
 
 export const placesApi = {
-    async getPlaces(params = {}) {
-        const apiParams = {
-            ...params,
-            category: normalizeCategoryParam(params.category),
-        };
-
-        const data = await apiClient.get("/places/index.php", apiParams);
-
-        return {
-            places: Array.isArray(data.places) ?
-                data.places.map((place) => mapPlaceFromApi(place)) :
-                [],
-        };
-    },
-
-    async getMapPlaces(params = {}) {
-        const apiParams = {
-            ...params,
-            category: normalizeCategoryParam(params.category),
-        };
-
-        const data = await apiClient.get("/places/map.php", apiParams);
-
-        return {
-            places: Array.isArray(data.places) ?
-                data.places
-                .map((place) => mapPlaceFromApi(place))
-                .filter((place) => place.position) :
-                [],
-        };
-    },
-
-    async getPlaceBySlug(slug) {
-        const data = await apiClient.get("/places/show.php", {
-            slug,
-        });
-
-        return {
-            place: data.place ?
-                mapPlaceFromApi(
-                    data.place,
-                    data.images ?? [],
-                    data.attributes ?? []
-                ) :
-                null,
-        };
-    },
+    getPlaces,
+    getMapPlaces,
+    getPlaceBySlug,
 };
