@@ -3,6 +3,8 @@ const STATUS_LABELS = {
     local: "Локально добавлено",
     pending: "На проверке",
     published: "Опубликовано",
+    rejected: "Отклонено",
+    expired: "Снято с публикации",
 };
 
 export function getAccountPlaceStatus(status) {
