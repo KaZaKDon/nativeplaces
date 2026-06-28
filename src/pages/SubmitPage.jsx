@@ -72,6 +72,42 @@ function createLocalGalleryItem(dataUrl, file) {
     };
 }
 
+function formatPlanDuration(days) {
+    const value = Number(days || 0);
+
+    if (!value) {
+        return "Бессрочно";
+    }
+
+    if (value === 14) {
+        return "14 дней";
+    }
+
+    if (value === 30) {
+        return "30 дней";
+    }
+
+    return `${value} дн.`;
+}
+
+function formatPlanPrice(price) {
+    const value = Number(price || 0);
+
+    if (!value) {
+        return "Бесплатно";
+    }
+
+    return `${value.toLocaleString("ru-RU")} ₽`;
+}
+
+function getPlanBadge(plan) {
+    if (!Number(plan?.price || 0)) {
+        return "Промо";
+    }
+
+    return "Платный";
+}
+
 function getContactFields(contactValue) {
     const value = contactValue.trim();
 
@@ -121,6 +157,7 @@ export function SubmitPage() {
 
     const [submitCategories, setSubmitCategories] = useState([]);
     const [submitTypes, setSubmitTypes] = useState([]);
+    const [submitPlans, setSubmitPlans] = useState([]);
     const [optionsLoading, setOptionsLoading] = useState(true);
     const [optionsError, setOptionsError] = useState("");
 
@@ -137,6 +174,10 @@ export function SubmitPage() {
 
     const [selectedType, setSelectedType] = useState(() => {
         return initialDraft?.selectedType ?? "";
+    });
+
+    const [selectedPlan, setSelectedPlan] = useState(() => {
+        return initialDraft?.selectedPlan ?? "";
     });
 
     const [selectedLocality, setSelectedLocality] = useState(() => {
@@ -184,7 +225,14 @@ export function SubmitPage() {
                     Array.isArray(data.categories) ? data.categories : []
                 );
 
+                const normalizedPlans = Array.isArray(data.plans) ? data.plans : [];
+
                 setSubmitTypes(Array.isArray(data.types) ? data.types : []);
+                setSubmitPlans(normalizedPlans);
+
+                if (!editPlaceId && !initialDraft?.selectedPlan && normalizedPlans.length > 0) {
+                    setSelectedPlan(String(normalizedPlans[0].id));
+                }
 
                 setOptionsError("");
             } catch (error) {
@@ -208,7 +256,7 @@ export function SubmitPage() {
         return () => {
             isMounted = false;
         };
-    }, []);
+    }, [editPlaceId, initialDraft?.selectedPlan]);
 
     useEffect(() => {
         let isMounted = true;
@@ -351,6 +399,12 @@ export function SubmitPage() {
         });
     }, [selectedType, submitTypes]);
 
+    const selectedPlanItem = useMemo(() => {
+        return submitPlans.find((plan) => {
+            return String(plan.id) === String(selectedPlan);
+        });
+    }, [selectedPlan, submitPlans]);
+
     const selectedLocalityItem = useMemo(() => {
         if (!selectedLocality) {
             return null;
@@ -361,7 +415,10 @@ export function SubmitPage() {
         }) || null;
     }, [selectedLocality, localities]);
 
-    const hasSubmitOptions = submitCategories.length > 0 && submitTypes.length > 0;
+    const hasSubmitOptions =
+        submitCategories.length > 0 &&
+        submitTypes.length > 0 &&
+        (isEditMode || submitPlans.length > 0);
     const isFormBootstrapLoading = editingLoading || (optionsLoading && !hasSubmitOptions);
 
     const localityHasSearch = localitySearch.trim().length > 0;
@@ -420,6 +477,7 @@ export function SubmitPage() {
         return {
             selectedCategory,
             selectedType,
+            selectedPlan,
             selectedLocality,
             localitySearch,
             formData,
@@ -614,12 +672,15 @@ export function SubmitPage() {
         const currentCategoryId = selectedCategoryItem?.id ?? editingPlace?.categoryId;
         const currentPlaceTypeId = selectedTypeItem?.id ?? editingPlace?.placeTypeId;
         const currentLocalityId = Number(selectedLocality || 0);
+        const currentPlanId = Number(selectedPlanItem?.id || 0);
         const validationMessage = validateSubmitForm({
             title: formData.title,
             categoryId: currentCategoryId,
             placeTypeId: currentPlaceTypeId,
             localityId: currentLocalityId,
             hasLocation: Boolean(submitLocation || editingPlace?.position),
+            planId: currentPlanId,
+            requiresPlan: !isEditMode,
         });
 
         if (validationMessage) {
@@ -647,6 +708,7 @@ export function SubmitPage() {
                     categoryId: currentCategoryId,
                     placeTypeId: currentPlaceTypeId,
                     localityId: currentLocalityId,
+                    planId: currentPlanId,
                 });
 
                 placeId = createdPlace.place_id;
@@ -922,6 +984,43 @@ export function SubmitPage() {
                                             />
                                         )}
                                     </label>
+                                ))}
+                            </div>
+                        </section>
+                    )}
+
+                    {!isEditMode && (
+                        <section className="submit-form__section">
+                            <h2>Тариф размещения</h2>
+                            <p className="submit-form__note submit-form__note--top">
+                                На период запуска тарифы бесплатные. Выберите подходящий лимит — он нужен для срока размещения и количества объявлений.
+                            </p>
+
+                            <div className="submit-plan-grid">
+                                {submitPlans.map((plan) => (
+                                    <button
+                                        key={plan.id}
+                                        className={
+                                            String(selectedPlan) === String(plan.id)
+                                                ? "submit-plan is-active"
+                                                : "submit-plan"
+                                        }
+                                        type="button"
+                                        onClick={() => {
+                                            setSelectedPlan(String(plan.id));
+                                            setSubmitStatus("");
+                                        }}
+                                    >
+                                        <span className="submit-plan__badge">
+                                            {getPlanBadge(plan)}
+                                        </span>
+                                        <strong>{plan.title}</strong>
+                                        <span>{plan.description}</span>
+                                        <small>
+                                            До {Number(plan.max_places || 0) || "∞"} объявл. · {formatPlanDuration(plan.duration_days)}
+                                        </small>
+                                        <b>{formatPlanPrice(plan.price)}</b>
+                                    </button>
                                 ))}
                             </div>
                         </section>

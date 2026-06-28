@@ -1,9 +1,9 @@
 import {
     apiClient
-} from "./apiClient";
+} from "./apiClient.js";
 import {
     getMediaUrl
-} from "./mediaUrl";
+} from "./mediaUrl.js";
 
 function normalizeCategoryCode(code) {
     if (code === "real_estate") {

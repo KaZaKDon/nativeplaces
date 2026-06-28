@@ -136,12 +136,14 @@ export const myPlacesApi = {
         categoryId,
         placeTypeId,
         localityId,
+        planId,
     }) {
         return apiClient.post("/my-places/create.php", {
             title,
             category_id: categoryId,
             place_type_id: placeTypeId,
             locality_id: localityId,
+            plan_id: planId,
         });
     },
 
