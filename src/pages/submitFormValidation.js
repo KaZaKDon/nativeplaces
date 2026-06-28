@@ -4,6 +4,8 @@ export function validateSubmitForm({
     placeTypeId,
     localityId,
     hasLocation,
+    planId,
+    requiresPlan = false,
 }) {
     if (!String(title ?? "").trim()) {
         return "Укажите название объекта.";
@@ -23,6 +25,10 @@ export function validateSubmitForm({
 
     if (!hasLocation) {
         return "Укажите точку на карте.";
+    }
+
+    if (requiresPlan && !Number(planId || 0)) {
+        return "Выберите тариф размещения.";
     }
 
     return "";

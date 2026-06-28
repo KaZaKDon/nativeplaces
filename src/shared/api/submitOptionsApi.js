@@ -5,18 +5,21 @@ function normalizeOptions(data = {}) {
         ...data,
         categories: Array.isArray(data.categories) ? data.categories : [],
         types: Array.isArray(data.types) ? data.types : [],
+        plans: Array.isArray(data.plans) ? data.plans : [],
     };
 }
 
 async function getFallbackOptions() {
-    const [categoriesData, typesData] = await Promise.all([
+    const [categoriesData, typesData, plansData] = await Promise.all([
         apiClient.get("/categories/index.php"),
         apiClient.get("/place-types/index.php"),
+        apiClient.get("/plans/index.php"),
     ]);
 
     return normalizeOptions({
         categories: categoriesData.categories,
         types: typesData.types,
+        plans: plansData.plans,
     });
 }
 

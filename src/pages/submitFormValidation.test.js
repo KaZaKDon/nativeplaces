@@ -9,6 +9,8 @@ const validForm = {
     placeTypeId: 1,
     localityId: 3,
     hasLocation: true,
+    planId: 8,
+    requiresPlan: true,
 };
 
 test("returns empty message for a valid submit form", () => {
@@ -47,5 +49,20 @@ test("requires map location", () => {
     assert.equal(
         validateSubmitForm({ ...validForm, hasLocation: false }),
         "Укажите точку на карте."
+    );
+});
+
+
+test("requires plan when plan selection is required", () => {
+    assert.equal(
+        validateSubmitForm({ ...validForm, planId: null }),
+        "Выберите тариф размещения."
+    );
+});
+
+test("does not require plan when plan selection is disabled", () => {
+    assert.equal(
+        validateSubmitForm({ ...validForm, planId: null, requiresPlan: false }),
+        ""
     );
 });
